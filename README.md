@@ -28,8 +28,15 @@ it from the CLI once `pubspec.yaml` carries the version you want to ship:
 gh workflow run release.yml
 ```
 
-or push a tag (`git tag v2.1.0 && git push origin v2.1.0`). The workflow reads `version:` from
+or push a tag (`git tag v2.1.1 && git push origin v2.1.1`). The workflow reads `version:` from
 `pubspec.yaml`, builds `flutter build apk --release` and publishes `accrue-<version>.apk`.
+
+Release builds are signed with the project's release keystore so versions install over each
+other. The keystore and its passwords live in repository secrets (`KEYSTORE_BASE64`,
+`KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`); the local copy is at
+`C:/Users/p/.accrue/accrue-release.jks` with `android/key.properties` pointing at it. Both are
+git-ignored. **Back the keystore up**: without it you cannot ship an update to an installed
+release.
 
 ## Test
 

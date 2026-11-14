@@ -155,7 +155,15 @@ the device.
   mipmaps + adaptive icon, web icons/favicon, `windows/runner/resources/app_icon.ico`, and
   `assets/branding/enso.png` for the About header.
 - `.github/workflows/release.yml` builds a release APK on tag `v*` or `workflow_dispatch` and
-  attaches it as `accrue-<version>.apk`. Release builds are signed with the debug key that Gradle
-  generates on the runner, so builds from different runners cannot update each other; add a
-  keystore secret before a store release.
+  attaches it as `accrue-<version>.apk`.
+- **Stable signing.** `android/app/build.gradle.kts` reads `android/key.properties` (git-ignored)
+  and signs with the release keystore when it exists, else falls back to the debug key. CI writes
+  that file from secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`)
+  before building; the workflow fails when the keystore secret is missing so an unsigned debug-key
+  build cannot slip out. Certificate: `CN=Wrong Turn, OU=Accrue`, SHA-256
+  `09fbb2aff8aa99cb7633bfe08180dea1f8364119e556b50252b127c7a11b80dc`. Local keystore:
+  `C:/Users/p/.accrue/accrue-release.jks` (password in `keystore-password.txt` beside it). Back it
+  up — losing it ends update-over-install for everyone.
+- v2.1.1 is the first build on that key: installs of 2.1.0 (debug-key signed) must be uninstalled
+  once.
 - Data key stays `habit_tracker.state.v2` so installs from before the rename keep their habits.

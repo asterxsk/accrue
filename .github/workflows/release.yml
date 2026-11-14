@@ -32,6 +32,26 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Set up release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is missing; releases must be signed with the stable key."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/accrue-release.jks
+          {
+            echo "storeFile=$GITHUB_WORKSPACE/android/accrue-release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+          echo "Signing keystore written."
+
       - name: Read version from pubspec
         id: version
         run: |
@@ -47,6 +67,11 @@ jobs:
 
       - name: Build release APK
         run: flutter build apk --release
+
+      - name: Verify signature
+        run: |
+          build_tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$build_tools/apksigner" verify --print-certs             build/app/outputs/flutter-apk/app-release.apk | head -5
 
       - name: Name the artifact
         run: |
@@ -64,8 +89,9 @@ jobs:
             Accrue ${{ steps.version.outputs.name }} (versionCode ${{ steps.version.outputs.code }}).
 
             Install `accrue-${{ steps.version.outputs.name }}.apk` on Android 7.0 or newer.
-            This build is signed with the CI runner's debug key: it installs cleanly, but a
-            future release built on a different runner may require uninstalling first.
+            Release builds are signed with the project's release key, so later versions install
+            over this one without uninstalling. Builds published before v2.1.1 used a CI debug
+            key and cannot update to this line — uninstall once, then updates are stable.
           files: dist/accrue-${{ steps.version.outputs.name }}.apk
           generate_release_notes: true
           fail_on_unmatched_files: true

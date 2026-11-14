@@ -50,3 +50,8 @@ app.*.map.json
 
 # Local scratch captures and one-off tooling output.
 /scratch/
+
+# Release signing material — never commit.
+/android/key.properties
+*.jks
+*.keystore

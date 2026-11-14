@@ -145,8 +145,10 @@
   icons/favicon, Windows ICO.
 - `.github/workflows/release.yml` builds the release APK and attaches it to a GitHub release on
   tag `v*` or `workflow_dispatch`; `gh workflow run release.yml` is the release command.
-- Release APKs are debug-key signed by the runner's generated keystore (installable, not
-  store-ready).
+- Releases are signed with a project keystore (`C:/Users/p/.accrue/accrue-release.jks`, secrets
+  `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`), so updates install over
+  older versions. The workflow fails if the keystore secret is missing. 2.1.1 is the first build
+  on that key; 2.1.0 installs need one uninstall.
 
 ## Open items
 

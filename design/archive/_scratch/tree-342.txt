@@ -1,0 +1,31 @@
+342 frame '07 · Empty state' x=2580 y=0 w=390 h=844 fill=#0a0a0a
+  343 text '9:41' x=2604 y=19 w=31 h=18 fill=#f5f5f5 chars='9:41' font=Inter SemiBold 15.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  344 rectangle 'signal0' x=2880 y=30 w=3 h=4 fill=#f5f5f5 r=[1.0, 1.0, 1.0, 1.0]
+  345 rectangle 'signal1' x=2886 y=28 w=3 h=6 fill=#f5f5f5 r=[1.0, 1.0, 1.0, 1.0]
+  346 rectangle 'signal2' x=2892 y=26 w=3 h=8 fill=#f5f5f5 r=[1.0, 1.0, 1.0, 1.0]
+  347 rectangle 'signal3' x=2898 y=24 w=3 h=10 fill=#f5f5f5 r=[1.0, 1.0, 1.0, 1.0]
+  348 frame 'battery' x=2920 y=25 w=22 h=11 stroke=#f5f5f5 sw=None r=[3.0, 3.0, 3.0, 3.0]
+  349 rectangle 'bat-fill' x=2923 y=28 w=16 h=5 fill=#f5f5f5 r=[1.5, 1.5, 1.5, 1.5]
+  350 rectangle 'bat-nub' x=2943 y=27 w=2 h=5 fill=#f5f5f5 r=[1.0, 1.0, 1.0, 1.0]
+  351 text 'Saturday, 7 November' x=2604 y=59 w=114 h=16 fill=#818181 chars='Saturday, 7 November' font=IBM Plex Serif Italic 12.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  352 text 'Today' x=2604 y=78 w=83 h=34 fill=#f5f5f5 chars='Today' font=Inter SemiBold 28.0 lh={'unit': 'pixels', 'value': 34.0} ls={'unit': 'percent', 'value': 0.0} align=None
+  353 ellipse 'avatar' x=2906 y=60 w=40 h=40 fill=#141414
+  354 text 'P' x=2906 y=70 w=40 h=18 fill=#7aa2ff chars='P' font=Inter SemiBold 15.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  355 text 'A clean start' x=2604 y=262 w=342 h=16 fill=#818181 chars='A clean start' font=IBM Plex Serif Italic 12.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  356 text 'Add your first habit' x=2604 y=290 w=342 h=28 fill=#f5f5f5 chars='Add your first habit' font=Inter SemiBold 22.0 lh={'unit': 'pixels', 'value': 28.0} ls={'unit': 'percent', 'value': 0.0} align=None
+  357 text 'A check, a timer, or' x=2640 y=332 w=270 h=40 fill=#818181 chars='A check, a timer, or a count.\nPick whatever fits the thing you keep.' font=Inter Regular 13.0 lh={'unit': 'pixels', 'value': 20.0} ls={'unit': 'percent', 'value': 0.0} align=None
+  358 frame 'primary' x=2675 y=412 w=200 h=52 fill=#2f63e8 r=[16.0, 16.0, 16.0, 16.0]
+  359 text 'Create a habit' x=2675 y=428 w=200 h=18 fill=#ffffff chars='Create a habit' font=Inter SemiBold 15.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  360 text 'Browse routine ideas' x=2675 y=486 w=200 h=16 fill=#818181 chars='Browse routine ideas' font=Inter Regular 13.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  371 rectangle 'home indicator' x=2725 y=830 w=100 h=4 fill=#f5f5f5 r=[2.0, 2.0, 2.0, 2.0] opacity=0.18
+  1651 frame 'tab bar · floating' x=2596 y=752 w=358 h=68 fill=#141414 stroke=#262626 sw=None r=[34.0, 34.0, 34.0, 34.0]
+    1652 frame 'icon · home' x=2645.67 y=766 w=20 h=20
+      1653 vector 'path' x=2648.17 y=768.5 w=15 h=15 stroke=#7aa2ff sw=None
+      1654 vector 'path' x=2653.17 y=776.833 w=5 h=6.66667 stroke=#7aa2ff sw=None
+    1655 text 'Today' x=2615.67 y=792 w=80 h=13 fill=#7aa2ff chars='Today' font=Inter SemiBold 11.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+    1656 frame 'icon · chart-bar' x=2765 y=766 w=20 h=20
+      1657 vector 'path' x=2767.5 y=769.333 w=15 h=13.3333 stroke=#818181 sw=None
+    1658 text 'Insights' x=2735 y=792 w=80 h=13 fill=#818181 chars='Insights' font=Inter Regular 11.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+    1659 frame 'icon · list-details' x=2884.33 y=766 w=20 h=20
+      1660 vector 'path' x=2886.83 y=769.333 w=15 h=13.3333 stroke=#818181 sw=None
+    1661 text 'Routines' x=2854.33 y=792 w=80 h=13 fill=#818181 chars='Routines' font=Inter Regular 11.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None

@@ -1,0 +1,3731 @@
+<!doctype html>
+<!--
+  Habit Tracker — interactive prototype of PRD v1.0.
+  Android handset shell from the bundled Open Design frame; app inside .phone-content.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <title>Habit Tracker</title>
+  <style>
+    /* OD-LAYOUT-PRIMITIVES v1 */
+    @layer od-layout {
+      [hidden]:not([hidden="until-found" i]) { display: none !important; }
+      dialog:not([open]) { display: none !important; }
+      :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+      .od-stack { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+      .od-row { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+      .od-field { display: grid; gap: var(--od-gap, 2px); }
+      :where(.od-field) > :where(*) { display: block; }
+      .od-nowrap { white-space: nowrap; }
+      .od-icon { display: inline-block; inline-size: var(--od-icon-size, 1em); block-size: var(--od-icon-size, 1em); flex: none; }
+      .od-touch { min-width: 44px; min-height: 44px; }
+    }
+    :root [hidden]:where(:not([hidden="until-found" i])) { display: none; }
+    /* /OD-LAYOUT-PRIMITIVES v1 */
+
+    /* ── Handset shell geometry ───────────────────────────────── */
+    :root {
+      --phone-screen-width: 412px;
+      --phone-screen-height: 915px;
+      --phone-bezel: 10px;
+      --phone-outer-radius: 46px;
+      --phone-screen-radius: 38px;
+      --phone-safe-top: 52px;
+      --phone-safe-bottom: 28px;
+      --phone-system-fg: #f2f0e9;
+      --phone-screen-bg: #121211;
+      --phone-stage-bg: #0d0d0c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      background:
+        radial-gradient(circle at 50% 14%, rgba(255,255,255,.07), transparent 36%),
+        var(--phone-stage-bg);
+      color: #1b1b19;
+      font-family: var(--font-ui);
+    }
+    .phone-frame {
+      position: relative;
+      width: calc(var(--phone-screen-width) + var(--phone-bezel) * 2);
+      height: calc(var(--phone-screen-height) + var(--phone-bezel) * 2);
+      padding: var(--phone-bezel);
+      border-radius: var(--phone-outer-radius);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.2), transparent 18%),
+        linear-gradient(155deg, #414348 0%, #23252a 44%, #0c0d10 100%);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.13),
+        inset 0 0 0 2px rgba(0,0,0,.84),
+        0 34px 72px -22px rgba(8,10,14,.56),
+        0 11px 25px -10px rgba(8,10,14,.34);
+      isolation: isolate;
+    }
+    .phone-frame::before, .phone-frame::after {
+      content: ""; position: absolute; z-index: -1; top: 92px; bottom: 92px; width: 2px;
+      background: linear-gradient(to bottom, transparent, rgba(255,255,255,.14) 18%, transparent 32%, transparent 72%, rgba(255,255,255,.07) 88%, transparent);
+    }
+    .phone-frame::before { left: 0; }
+    .phone-frame::after { right: 0; }
+    .hardware-button {
+      position: absolute; right: -3px; width: 4px; border-radius: 3px;
+      background: linear-gradient(90deg, #08090b, #2d3036 62%, #08090b);
+      box-shadow: inset 0 1px rgba(255,255,255,.1);
+    }
+    .hardware-button.volume { top: 205px; height: 92px; }
+    .hardware-button.power { top: 322px; height: 70px; background: linear-gradient(90deg, #08090b, #3c424c 62%, #08090b); }
+
+    .phone-screen {
+      position: relative;
+      width: var(--phone-screen-width);
+      height: var(--phone-screen-height);
+      overflow: hidden;
+      border-radius: var(--phone-screen-radius);
+      background: var(--phone-screen-bg);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    }
+    .phone-content {
+      position: absolute; inset: 0;
+      overflow-x: hidden; overflow-y: auto;
+      overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-top: var(--phone-safe-top);
+      padding-bottom: var(--phone-safe-bottom);
+      background: var(--phone-screen-bg);
+    }
+    .phone-content::-webkit-scrollbar { display: none; }
+
+    .punch-hole {
+      position: absolute; z-index: 40; top: 14px; left: 50%;
+      width: 14px; height: 14px; transform: translateX(-50%); border-radius: 50%;
+      background: radial-gradient(circle at 38% 35%, #283343 0 10%, #090b0f 30%, #000 72%);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.08), inset 0 0 3px #000;
+      pointer-events: none;
+    }
+    .status-bar {
+      position: absolute; z-index: 15; inset: 0 0 auto; height: var(--phone-safe-top);
+      display: grid; grid-template-columns: minmax(0,1fr) 64px minmax(0,1fr);
+      align-items: start; padding: 14px 19px 0;
+      color: var(--phone-system-fg); pointer-events: none;
+    }
+    .status-time { justify-self: start; display: flex; align-items: center; height: 16px; font-size: 14px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+    .status-cutout-zone { width: 64px; }
+    .status-icons { justify-self: end; display: inline-flex; align-items: center; height: 16px; gap: 5px; }
+    .status-icons svg { display: block; flex: none; fill: currentColor; }
+    .status-icons .wifi { width: 15px; height: 12px; }
+    .status-icons .cellular { width: 14px; height: 12px; }
+    .status-icons .battery { width: 9px; height: 14px; }
+    .gesture-indicator {
+      position: absolute; z-index: 40; left: 50%; bottom: 8px; width: 108px; height: 4px;
+      transform: translateX(-50%); border-radius: 99px; background: var(--phone-system-fg);
+      opacity: .86; pointer-events: none;
+    }
+
+    @media (max-height: 998px) { .phone-frame { zoom: .9; } }
+    @media (max-height: 904px) { .phone-frame { zoom: .82; } }
+    @media (max-height: 829px) { .phone-frame { zoom: .74; } }
+    @media (max-height: 754px) { .phone-frame { zoom: .66; } }
+    @media (max-width: 480px) {
+      body { padding: 0; display: block; }
+      .phone-frame { width: 100%; height: 100dvh; padding: 0; border-radius: 0; background: none; box-shadow: none; zoom: 1; }
+      .phone-frame::before, .phone-frame::after, .hardware-button { display: none; }
+      .phone-screen { width: 100%; height: 100%; border-radius: 0; }
+    }
+
+    /* ── Claude design system tokens ────────────────────────────
+       Light parchment is the default; dark is a separately tuned set. */
+    :root {
+      --font-ui: "Anthropic Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      --font-serif: "Anthropic Serif", Georgia, "Times New Roman", serif;
+
+      --bg: #f5f4ed;
+      --surface: #faf9f5;
+      --surface-2: #e8e6dc;
+      --line: #e8e6dc;
+      --hairline: #f0eee6;
+      --text: #141413;
+      --muted: #5e5d59;
+      --faint: #87867f;
+
+      --accent: #c96442;
+      --accent-ink: #a94e2e;
+      --accent-on: #faf9f5;
+      --accent-soft: rgba(201, 100, 66, .12);
+      --warn: #9c6b23;
+      --warn-ink: #8a5d1c;
+      --danger: #9e3b31;
+      --danger-on: #fbf6f2;
+
+      --action-bg: #141413;
+      --action-fg: #faf9f5;
+      --action-hover: #2b2b28;
+
+      --track: #e8e6dc;
+      --scrim: rgba(20, 20, 19, .3);
+      --shadow: rgba(0, 0, 0, .05) 0 4px 24px;
+      --sheet-shadow: 0 -10px 40px rgba(35, 30, 20, .16);
+
+      --focus: #3898ec;
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 16px;
+      --ease: cubic-bezier(.2, 0, 0, 1);
+
+      --phone-system-fg: #17181a;
+      --phone-screen-bg: #f5f4ed;
+      --phone-stage-bg: #e8eaee;
+      color-scheme: light;
+    }
+    :root[data-theme="dark"] {
+      --bg: #141413;
+      --surface: #30302e;
+      --surface-2: #3d3d3a;
+      --line: #3d3d3a;
+      --hairline: #30302e;
+      --text: #faf9f5;
+      --muted: #b0aea5;
+      --faint: #a5a49c;
+
+      --accent: #d97757;
+      --accent-ink: #e89a7e;
+      --accent-on: #141413;
+      --accent-soft: rgba(217, 119, 87, .16);
+      --warn: #e0a458;
+      --warn-ink: #e6b271;
+      --danger: #e58a7a;
+      --danger-on: #141413;
+
+      --action-bg: #faf9f5;
+      --action-fg: #141413;
+      --action-hover: #e8e6dc;
+
+      --track: #3d3d3a;
+      --scrim: rgba(0, 0, 0, .6);
+      --shadow: 0 0 0 1px #3d3d3a;
+      --sheet-shadow: 0 -10px 40px rgba(0, 0, 0, .45);
+
+      --focus: #8ab4d8;
+
+      --phone-system-fg: #faf9f5;
+      --phone-screen-bg: #141413;
+      --phone-stage-bg: #0d0d0c;
+      color-scheme: dark;
+    }
+    :root[data-theme="light"] body {
+      background:
+        radial-gradient(circle at 50% 14%, rgba(255,255,255,.95), transparent 36%),
+        var(--phone-stage-bg);
+      color: var(--text);
+    }
+    :root[data-theme="dark"] body {
+      background:
+        radial-gradient(circle at 50% 14%, rgba(255,255,255,.06), transparent 36%),
+        var(--phone-stage-bg);
+      color: var(--text);
+    }
+
+    body { font-family: var(--font-ui); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+    button { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+      overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+    }
+
+    .ic { display: block; inline-size: var(--ic, 20px); block-size: var(--ic, 20px); flex: none; }
+
+    .app {
+      max-width: 430px;
+      margin: 0 auto;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 118px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── Headers ──────────────────────────────────────────────── */
+    .top {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 6px 20px 0;
+    }
+    .eyebrow {
+      margin: 0 0 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+    h1.title {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 30px;
+      line-height: 1.14;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+
+    .screen { padding: 0 20px; flex: 1 1 auto; display: flex; flex-direction: column; }
+    .head-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 52px;
+      margin: 0 -8px 6px;
+      padding: 0 0;
+    }
+    .back {
+      width: 44px; height: 44px;
+      display: grid; place-items: center;
+      border: 0; background: transparent; border-radius: 999px;
+      color: var(--text); cursor: pointer;
+    }
+    .back .ic { --ic: 22px; }
+    .back:hover { background: var(--surface-2); }
+    .head-action {
+      min-height: 44px; padding: 0 12px;
+      border: 0; background: transparent; border-radius: var(--r-sm);
+      font-size: 15px; font-weight: 500; color: var(--accent-ink);
+      cursor: pointer;
+    }
+    .head-action:hover { background: var(--accent-soft); }
+    .head-plus {
+      width: 44px; height: 44px;
+      display: grid; place-items: center;
+      border: 1px solid var(--line); background: var(--surface);
+      border-radius: 999px; color: var(--text); cursor: pointer;
+    }
+    .head-plus .ic { --ic: 20px; }
+    .head-plus:hover { border-color: var(--faint); }
+
+    /* ── Today number ─────────────────────────────────────────── */
+    .stat { padding: 22px 20px 0; }
+    .stat-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .stat-num {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.15;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-num .of { color: var(--muted); font-weight: 500; }
+    .stat-pct { font-size: 20px; font-weight: 600; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+    .track { height: 6px; margin-top: 12px; border-radius: 999px; background: var(--track); overflow: hidden; }
+    .track-fill { height: 100%; border-radius: 999px; background: var(--accent); transition: width 260ms var(--ease); }
+
+    /* ── Sections ─────────────────────────────────────────────── */
+    .section { padding: 26px 20px 0; }
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .habit-list { list-style: none; margin: 0; padding: 0; }
+    .habit-item { border-bottom: 1px solid var(--line); }
+    .habit-item:first-child { border-top: 1px solid var(--line); }
+    .habit-row { display: flex; align-items: center; gap: 4px; min-height: 68px; }
+    .habit-main {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 4px 10px 0;
+      border: 0;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+      border-radius: var(--r-sm);
+    }
+    .habit-main:hover .habit-name { color: var(--accent-ink); }
+
+    .ring { position: relative; width: 44px; height: 44px; flex: none; display: grid; place-items: center; }
+    .ring svg.arc-svg { position: absolute; inset: 0; width: 44px; height: 44px; transform: rotate(-90deg); }
+    .ring .arc-track { stroke: var(--line); }
+    .ring .arc-fill { stroke: var(--accent); transition: stroke-dashoffset 260ms var(--ease); }
+    .ring-icon { position: relative; width: 28px; height: 28px; display: grid; place-items: center; color: var(--muted); }
+    .ring-icon .ic { --ic: 17px; }
+    .habit-item.is-done .ring-icon { color: var(--accent-ink); }
+
+    .habit-text { display: grid; gap: 2px; min-width: 0; }
+    .habit-name {
+      display: block;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.3;
+      color: var(--text);
+      overflow-wrap: anywhere;
+    }
+    .habit-sub {
+      display: block;
+      font-size: 13px;
+      line-height: 1.35;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .habit-sub.is-warn { color: var(--warn-ink); }
+    .habit-item.is-done .habit-name { color: var(--text); }
+
+    .habit-tail { display: flex; align-items: center; gap: 2px; flex: none; }
+    .row-more {
+      width: 44px; height: 44px; flex: none;
+      display: grid; place-items: center;
+      border: 0; background: transparent; border-radius: 999px;
+      color: var(--faint); cursor: pointer;
+    }
+    .row-more .ic { --ic: 18px; }
+    .row-more:hover { background: var(--surface-2); color: var(--text); }
+    .mini-step {
+      width: 44px; height: 44px;
+      display: grid; place-items: center;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .mini-step .ic { --ic: 16px; }
+    .mini-step:hover:not(:disabled) { border-color: var(--faint); background: var(--surface-2); }
+    .mini-step:disabled { opacity: .38; cursor: default; }
+    .count-value {
+      min-width: 24px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .chev {
+      width: 44px; height: 44px;
+      display: grid; place-items: center;
+      border: 0; background: transparent; border-radius: 999px;
+      color: var(--faint); cursor: pointer;
+    }
+    .chev .ic { --ic: 18px; }
+    .chev:hover { color: var(--text); background: var(--surface-2); }
+
+    .dashed-row {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 12px;
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 14px;
+      border: 1px dashed var(--line);
+      border-radius: var(--r-md);
+      background: transparent;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .dashed-row .ic { --ic: 16px; color: var(--accent-ink); }
+    .dashed-row:hover { border-color: var(--faint); color: var(--text); }
+
+    /* ── Cards ────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      border-radius: var(--r-lg);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .card + .card { margin-top: 12px; }
+
+    .routine-card {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 4px;
+      margin-bottom: 10px;
+      border: 1px solid var(--hairline);
+      border-radius: var(--r-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .routine-main {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 0 10px 10px;
+      border: 0;
+      border-radius: var(--r-md);
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .routine-main:hover .routine-name { color: var(--accent-ink); }
+    .routine-disc {
+      width: 44px; height: 44px; flex: none;
+      display: grid; place-items: center;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+      font-size: 15px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .routine-text { display: grid; gap: 2px; min-width: 0; flex: 1 1 auto; }
+    .routine-name { display: block; font-size: 15px; font-weight: 600; }
+    .routine-meta { display: block; font-size: 13px; color: var(--muted); }
+    .routine-state { display: block; font-size: 13px; color: var(--muted); }
+
+    .routine-run-list { display: grid; gap: 8px; }
+    .routine-run-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 60px;
+      padding: 10px 14px;
+      border: 1px solid var(--hairline);
+      border-radius: var(--r-md);
+      background: var(--surface);
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+    }
+    .routine-run-row.is-current { border-color: var(--accent); background: var(--accent-soft); }
+    .routine-run-row.is-upcoming { opacity: .78; }
+    .routine-check {
+      width: 28px; height: 28px; flex: none;
+      display: grid; place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--accent-on);
+    }
+    .routine-check .ic { --ic: 15px; }
+    .routine-run-row.is-done .routine-check { background: var(--accent); border-color: var(--accent); }
+    .routine-run-row.is-current .routine-check { border-color: var(--accent); }
+    .routine-run-text { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+    .routine-run-name { font-size: 15px; font-weight: 600; }
+    .routine-run-row.is-done .routine-run-name { text-decoration: line-through; text-decoration-color: var(--faint); color: var(--muted); }
+    .routine-run-meta { font-size: 12px; color: var(--muted); }
+    .routine-run-value { flex: none; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    /* ── Counter detail ───────────────────────────────────────── */
+    .counter-body { display: grid; justify-items: center; text-align: center; padding: 10px 0 0; }
+    .disc {
+      width: 64px; height: 64px;
+      display: grid; place-items: center;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+    }
+    .disc .ic { --ic: 28px; }
+    .display-name { margin: 14px 0 2px; font-family: var(--font-serif); font-size: 28px; line-height: 1.2; font-weight: 500; letter-spacing: -0.01em; }
+    .target-line { margin: 0; font-size: 14px; color: var(--muted); }
+    .big-count {
+      margin: 22px 0 0;
+      font-size: 56px;
+      line-height: 1;
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+    }
+    .big-count .denom { font-size: 22px; font-weight: 500; color: var(--muted); margin-left: 8px; letter-spacing: -0.01em; }
+    .dot-row { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; row-gap: 6px; margin-top: 20px; max-width: 100%; }
+    .dot {
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1.5px solid var(--line);
+      flex: none;
+    }
+    .dot.is-on { background: var(--accent); border-color: var(--accent); }
+
+    .stepper-row { display: flex; gap: 16px; justify-content: center; margin-top: 26px; }
+    .big-step {
+      width: 64px; height: 64px;
+      display: grid; place-items: center;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .big-step .ic { --ic: 24px; }
+    .big-step:hover:not(:disabled) { border-color: var(--faint); background: var(--surface-2); }
+    .big-step:disabled { opacity: .35; cursor: default; }
+
+    .full-cards { width: 100%; margin-top: 28px; text-align: left; }
+    .streak-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .streak-num { margin: 2px 0 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+    .best { margin: 0; font-size: 13px; color: var(--muted); white-space: nowrap; }
+    .week-card .week-dots { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+    .week-dot { height: 24px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+    .week-dot.is-on { background: var(--accent); border-color: var(--accent); }
+    .week-dot.is-today:not(.is-on) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .week-letters { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+    .week-letters span { font-size: 10px; text-align: center; color: var(--muted); letter-spacing: .04em; }
+
+    /* ── Timer ────────────────────────────────────────────────── */
+    .timer-body { display: grid; justify-items: center; text-align: center; padding-top: 18px; }
+    .timer-name { margin: 0; font-family: var(--font-serif); font-size: 17px; font-weight: 500; color: var(--muted); }
+    .timer-ring { position: relative; width: min(244px, 68vw); aspect-ratio: 1; margin: 22px 0 6px; }
+    .timer-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+    .timer-ring .track-c { stroke: var(--line); }
+    .timer-ring .value-c { stroke: var(--accent); transition: stroke-dashoffset 400ms linear; }
+    .timer-center { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 4px; }
+    .timer-clock { font-size: 34px; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+    .timer-of { font-size: 13px; color: var(--muted); }
+    .timer-start {
+      width: 72px; height: 72px;
+      margin-top: 18px;
+      display: grid; place-items: center;
+      border-radius: 999px;
+      border: 0;
+      background: var(--accent);
+      color: var(--accent-on);
+      cursor: pointer;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, .18);
+    }
+    .timer-start .ic { --ic: 26px; }
+    .timer-start:active { transform: translateY(1px); }
+    .timer-goal { width: 100%; margin-top: 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .timer-goal .label { margin: 0; font-size: 14px; color: var(--muted); }
+    .timer-goal .value { margin: 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ghost-btn {
+      margin-top: 16px;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 1px solid transparent;
+      border-radius: var(--r-sm);
+      background: transparent;
+      color: var(--accent-ink);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .ghost-btn:hover { background: var(--accent-soft); }
+    .ghost-muted { color: var(--muted); }
+    .ghost-muted:hover { background: var(--surface-2); color: var(--text); }
+
+    /* ── Routine run ──────────────────────────────────────────── */
+    .segments { display: flex; gap: 4px; margin: 4px 0 22px; }
+    .segment { flex: 1 1 0; height: 4px; border-radius: 999px; background: var(--track); }
+    .segment.is-done { background: var(--accent); }
+    .segment.is-current { background: var(--accent-ink); opacity: .55; }
+    .step-card { padding: 20px; }
+    .step-eyebrow { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .step-name { margin: 0; font-family: var(--font-serif); font-size: 24px; line-height: 1.25; font-weight: 500; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+    .step-meta { margin: 6px 0 18px; font-size: 14px; color: var(--muted); }
+    .btn-primary {
+      min-height: 48px;
+      padding: 0 20px;
+      border: 0;
+      border-radius: var(--r-md);
+      background: var(--action-bg);
+      color: var(--action-fg);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-primary:hover { background: var(--action-hover); }
+    .btn-primary:disabled { opacity: .45; cursor: default; }
+    .btn-primary:active:not(:disabled) { transform: translateY(1px); }
+    .btn-block { width: 100%; }
+    .btn-secondary {
+      min-height: 48px; padding: 0 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 15px; font-weight: 500; cursor: pointer;
+    }
+    .btn-secondary:hover { border-color: var(--faint); background: var(--surface-2); }
+    .btn-danger { background: var(--danger); color: var(--danger-on); }
+    .btn-danger:hover { background: color-mix(in oklab, var(--danger), black 8%); }
+    .next-up { margin-top: 24px; }
+    .next-up-list { list-style: none; margin: 8px 0 0; padding: 0; }
+    .next-up-list li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .next-up-list li:last-child { border-bottom: 0; }
+    .next-up-list .mins { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .complete-card { text-align: center; padding: 26px 20px; }
+    .complete-card h2 { margin: 0 0 4px; font-family: var(--font-serif); font-size: 24px; font-weight: 500; }
+    .complete-card p { margin: 0; font-size: 14px; color: var(--muted); }
+    .composer { display: grid; gap: 10px; margin-top: 14px; }
+    .composer label, .field-label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    .field {
+      width: 100%;
+      min-height: 48px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: 16px;
+    }
+    .field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+    /* ── Routines tab ─────────────────────────────────────────── */
+    .routine-lg { padding: 16px; margin-bottom: 12px; }
+    .routine-head { display: flex; align-items: center; gap: 4px; }
+    .routine-lg-head { display: flex; align-items: center; gap: 14px; flex: 1 1 auto; min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; color: inherit; }
+    .routine-lg-head:hover .routine-name { color: var(--accent-ink); }
+    .step-list { list-style: none; margin: 14px 0 0; padding: 0; }
+    .step-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 14px; }
+    .step-dot {
+      width: 16px; height: 16px; flex: none;
+      display: grid; place-items: center;
+      border-radius: 999px;
+      border: 1.5px solid var(--line);
+      background: transparent;
+      color: var(--accent-on);
+    }
+    .step-dot .ic { --ic: 10px; }
+    .step-item.is-done .step-dot { background: var(--accent); border-color: var(--accent); }
+    .step-item.is-current .step-dot { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--surface); background: transparent; }
+    .step-item.is-done .step-name { color: var(--muted); }
+    .step-item.is-current .step-name { font-weight: 600; }
+    .step-item.is-upcoming .step-name { color: var(--muted); }
+    .step-mins { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
+
+    /* ── Insights ─────────────────────────────────────────────── */
+    .hero-card { padding: 20px; }
+    .hero-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .big-stat { margin: 0; font-size: 52px; line-height: 1; font-weight: 500; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+    .big-stat .pct { font-size: 24px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+    .trend {
+      display: inline-flex; align-items: center; gap: 4px;
+      min-height: 30px; padding: 0 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+      font-size: 13px; font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .trend .ic { --ic: 12px; }
+    .trend.is-zero { background: var(--surface-2); color: var(--muted); }
+    .card-caption { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+
+    .chart-wrap { margin-top: 14px; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; }
+    .axis { height: 150px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-bottom: 1px; }
+    .axis span { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .plot { height: 150px; display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 8px; align-items: stretch; border-bottom: 1px solid var(--line); }
+    .bar-slot { display: flex; flex-direction: column; justify-content: flex-end; }
+    .bar { width: 100%; border-radius: 6px 6px 0 0; background: var(--faint); opacity: .45; }
+    .bar.is-today { background: var(--accent); opacity: 1; }
+    .bar.is-empty { background: transparent; }
+    .day-letters { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 8px; margin: 6px 0 0 38px; }
+    .day-letters span { font-size: 11px; text-align: center; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .day-letters span.is-today { color: var(--text); font-weight: 600; }
+
+    .streak-row { display: flex; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+    .streak-row:last-child { border-bottom: 0; }
+    .streak-row .val { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+    /* ── Profile ──────────────────────────────────────────────── */
+    .profile-id { display: flex; align-items: center; gap: 14px; margin-top: 20px; padding: 16px; }
+    .profile-disc {
+      width: 52px; height: 52px; flex: none;
+      display: grid; place-items: center;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+    }
+    .profile-disc .ic { --ic: 24px; }
+    .profile-text { display: grid; gap: 2px; min-width: 0; }
+    .profile-name { margin: 0; font-family: var(--font-serif); font-size: 19px; font-weight: 500; line-height: 1.3; }
+    .profile-sub { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+
+    /* ── Profile settings ─────────────────────────────────────── */
+    .group-label { margin: 26px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .setting-row {
+      width: 100%;
+      min-height: 56px;
+      display: flex; align-items: center; gap: 12px;
+      padding: 0;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 15px;
+    }
+    .setting-row:first-of-type { border-top: 1px solid var(--line); }
+    .setting-row:hover .setting-label { color: var(--accent-ink); }
+    .setting-label { flex: 1 1 auto; }
+    .setting-value { color: var(--muted); font-size: 14px; white-space: nowrap; }
+    .setting-row .chev { width: 24px; height: 24px; }
+    .setting-row > .ic { --ic: 18px; color: var(--faint); }
+    .switch {
+      width: 48px; height: 28px; flex: none;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      position: relative;
+      cursor: pointer;
+      transition: background-color 160ms var(--ease), border-color 160ms var(--ease);
+    }
+    .switch::after {
+      content: ""; position: absolute; top: 3px; left: 3px;
+      width: 20px; height: 20px; border-radius: 999px;
+      background: var(--muted);
+      transition: transform 160ms var(--ease), background-color 160ms var(--ease);
+    }
+    .switch[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+    .switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--accent-on); }
+
+    /* ── New habit ────────────────────────────────────────────── */
+    .kind-options { display: grid; gap: 8px; margin-top: 10px; }
+    .kind-option {
+      display: flex; align-items: center; gap: 14px;
+      min-height: 64px; padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      background: var(--surface);
+      text-align: left;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .kind-option:hover { border-color: var(--faint); }
+    .kind-option[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
+    .kind-icon { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+    .kind-option[aria-pressed="true"] .kind-icon { background: var(--surface); color: var(--accent-ink); }
+    .kind-icon .ic { --ic: 18px; }
+    .kind-text { display: grid; gap: 2px; min-width: 0; }
+    .kind-name { display: block; font-size: 15px; font-weight: 600; }
+    .kind-desc { display: block; font-size: 13px; color: var(--muted); line-height: 1.35; }
+
+    .target-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; padding: 12px 0; border-top: 1px solid var(--line); }
+    .target-label { display: grid; gap: 2px; }
+    .target-label .t { display: block; font-size: 15px; font-weight: 500; }
+    .target-label .u { display: block; font-size: 13px; color: var(--muted); }
+    .target-controls { display: flex; align-items: center; gap: 6px; }
+    .target-value { min-width: 36px; text-align: center; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    /* ── New habit page ───────────────────────────────────────── */
+    .head-title {
+      flex: 1 1 auto;
+      margin: 0;
+      text-align: center;
+      font-family: var(--font-serif);
+      font-size: 19px;
+      font-weight: 500;
+      letter-spacing: -0.005em;
+    }
+    .head-spacer { width: 44px; flex: none; }
+
+    .new-habit-screen { padding-bottom: 0; }
+    .new-habit-body { padding-bottom: 6px; }
+    .field-block { display: grid; gap: 8px; margin-top: 16px; }
+    .field-block:first-child { margin-top: 2px; }
+    .field-block .ob-link { margin-top: 2px; padding: 4px 0; }
+    .field-hint { margin: 0; font-size: 12px; line-height: 1.5; color: var(--faint); }
+    .icon-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 10px; }
+    .icon-opt {
+      aspect-ratio: 1;
+      min-height: 48px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .icon-opt .ic { --ic: 20px; }
+    .icon-opt:hover { border-color: var(--faint); color: var(--text); }
+    .icon-opt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+    .danger-link { display: block; margin-top: 22px; padding: 8px 0; border: 0; background: transparent; color: var(--danger); font-size: 14px; font-weight: 600; cursor: pointer; }
+    .new-habit-body .target-row { margin-top: 24px; }
+    .new-habit-note { margin-top: 26px; padding-bottom: 4px; }
+    .new-habit-foot {
+      position: sticky;
+      bottom: 0;
+      margin: 28px -20px 0;
+      padding: 12px 20px 16px;
+      border-top: 1px solid var(--line);
+      background: color-mix(in oklab, var(--bg) 94%, transparent);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .link-row {
+      width: 100%; min-height: 56px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      margin-top: 8px; padding: 0;
+      border: 0; border-top: 1px solid var(--line);
+      background: transparent; color: var(--text);
+      font-size: 15px; text-align: left; cursor: pointer;
+    }
+    .link-row .val { color: var(--muted); font-size: 14px; }
+    .link-row:hover .lbl { color: var(--accent-ink); }
+    .note { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+
+    .screen-foot {
+      position: sticky;
+      bottom: 0;
+      margin: auto -20px 0;
+      padding: 14px 20px 20px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0), var(--bg) 26%);
+      display: grid;
+      gap: 10px;
+    }
+    :root[data-theme="light"] .screen-foot { background: linear-gradient(to bottom, rgba(245,243,236,0), var(--bg) 26%); }
+
+    /* ── Empty state ──────────────────────────────────────────── */
+    .empty { padding: 60px 20px 0; text-align: left; }
+    .empty-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      text-align: center;
+      padding: 24px 28px calc(44px + var(--phone-safe-bottom, 0px));
+      min-height: calc(var(--phone-screen-height, 915px) - var(--phone-safe-top, 52px) - var(--phone-safe-bottom, 28px) - 132px);
+    }
+    .empty-center h1 { max-width: 12ch; }
+    .empty-center p { max-width: 32ch; margin-left: auto; margin-right: auto; }
+    .empty-center .btn-primary { width: 100%; max-width: 240px; margin: 22px auto 0; }
+    .empty-center .link-btn { align-self: center; margin-top: 10px; }
+    .empty h1 { margin: 0 0 10px; font-family: var(--font-serif); font-size: 32px; line-height: 1.14; font-weight: 500; letter-spacing: -0.01em; }
+    .empty p { margin: 0 0 24px; font-size: 15px; line-height: 1.55; color: var(--muted); max-width: 34ch; }
+    .empty .btn-primary { width: 100%; }
+    .link-btn {
+      display: block; margin: 12px auto 0; padding: 8px 12px; min-height: 44px;
+      border: 0; background: transparent; color: var(--muted);
+      font-size: 14px; text-decoration: underline; text-underline-offset: 3px;
+      cursor: pointer; border-radius: var(--r-sm);
+    }
+    .link-btn:hover { color: var(--text); }
+
+    /* ── Pill ─────────────────────────────────────────────────── */
+    .pill {
+      position: absolute;
+      z-index: 12;
+      left: 50%;
+      bottom: calc(var(--phone-safe-bottom) + 16px);
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      min-height: 68px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+    }
+    .pill button {
+      min-width: 68px;
+      min-height: 56px;
+      display: grid;
+      justify-items: center;
+      align-content: center;
+      gap: 3px;
+      padding: 6px 10px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .01em;
+      cursor: pointer;
+    }
+    .pill button .ic { --ic: 20px; }
+    .pill button:hover { color: var(--text); }
+    .pill button[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); }
+    .pill button:focus-visible { outline-offset: -1px; }
+
+    /* ── Overlay: sheets and dialogs ──────────────────────────── */
+    .overlay { position: absolute; inset: 0; z-index: 30; display: flex; }
+    .overlay.is-dialog { align-items: center; justify-content: center; padding: 24px; }
+    .overlay.is-dialog #overlaySlot { width: 100%; max-width: 340px; display: flex; justify-content: center; max-height: 100%; }
+    .overlay.is-popup { align-items: flex-start; justify-content: flex-start; }
+    .overlay.is-popup .scrim { background: transparent; }
+    .overlay.is-popup #overlaySlot { position: absolute; inset: 0; pointer-events: none; }
+    .scrim { position: absolute; inset: 0; background: var(--scrim); opacity: 0; transition: opacity 150ms var(--ease); }
+    .overlay.is-open .scrim { opacity: 1; }
+
+    .popup-panel {
+      position: absolute;
+      pointer-events: auto;
+      min-width: 184px;
+      max-width: calc(100% - 16px);
+      padding: 6px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      box-shadow: 0 10px 30px rgba(20, 16, 8, .18);
+      transform: scale(.94);
+      opacity: 0;
+      transition: transform 140ms var(--ease), opacity 140ms var(--ease);
+    }
+    .overlay.is-open .popup-panel { transform: none; opacity: 1; }
+    .popup-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 48px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: var(--r-sm);
+      background: transparent;
+      color: var(--text);
+      font-size: 15px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .popup-item .ic { --ic: 18px; color: var(--muted); }
+    .popup-item > span { flex: 1 1 auto; min-width: 0; }
+    .popup-item:hover { background: var(--surface-2); }
+    .popup-item:focus-visible { outline-offset: -2px; }
+    .popup-item.is-danger { color: var(--danger); }
+    .popup-item.is-danger .ic { color: var(--danger); }
+
+    .sheet-title { margin: 0 0 4px; font-family: var(--font-serif); font-size: 22px; font-weight: 500; letter-spacing: -0.01em; }
+    .sheet-desc { margin: 0 0 16px; font-size: 14px; line-height: 1.55; color: var(--muted); }
+    .choice-list { display: grid; gap: 6px; margin-top: 10px; }
+    .choice {
+      width: 100%; min-height: 52px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 15px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .choice:hover { border-color: var(--faint); }
+    .choice[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+    .choice .ic { --ic: 16px; color: var(--accent-ink); }
+    .choice > span { flex: 1 1 auto; min-width: 0; }
+    .choice.is-danger { color: var(--danger); }
+    .choice.is-danger .ic { color: var(--danger); }
+
+    .dialog-panel {
+      position: relative;
+      width: 100%;
+      max-height: calc(var(--phone-screen-height, 915px) - var(--phone-safe-top, 52px) - var(--phone-safe-bottom, 28px) - 76px);
+      display: flex;
+      flex-direction: column;
+      padding: 22px 20px 18px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow);
+      transform: scale(.98);
+      opacity: 0;
+      transition: transform 180ms var(--ease), opacity 180ms var(--ease);
+    }
+    .overlay.is-open .dialog-panel { transform: none; opacity: 1; }
+    .dialog-panel h2 { margin: 0 0 8px; font-family: var(--font-serif); font-size: 22px; font-weight: 500; line-height: 1.25; flex: none; }
+    .dialog-panel p { margin: 0 0 18px; font-size: 14px; line-height: 1.55; color: var(--muted); }
+    .dialog-panel > .modal-body { overflow-y: auto; min-height: 0; margin: 4px -2px 0; padding: 0 2px 2px; }
+    .dialog-panel > .dialog-actions { flex: none; margin-top: 14px; }
+    .modal-note { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--faint); }
+    .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .dialog-actions .btn-secondary, .dialog-actions .btn-primary { flex: 1 1 0; padding: 0 12px; }
+    .dialog-actions .btn-danger { flex: 1 1 0; min-height: 48px; padding: 0 12px; border: 0; border-radius: var(--r-sm); font-size: 15px; font-weight: 600; cursor: pointer; }
+    .dismiss { margin-top: 12px; }
+
+    .time-picker { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 12px 0 20px; }
+    .time-unit { display: grid; justify-items: center; gap: 8px; }
+    .time-num { font-size: 40px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 76px; text-align: center; }
+    .time-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+
+    /* ── Onboarding ───────────────────────────────────────────── */
+    .phone-content.is-onboarding .app { min-height: 100%; display: flex; flex-direction: column; }
+    .ob { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 100%; padding: 8px 20px 30px; }
+    .ob-head { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
+    .ob-dots { display: flex; gap: 6px; }
+    .ob-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--line); transition: background 160ms var(--ease), width 160ms var(--ease); }
+    .ob-dot.is-on { width: 18px; background: var(--accent); }
+    .ob-step { flex: 1 1 auto; display: flex; flex-direction: column; padding-top: 18px; }
+    .ob h1 { margin: 0 0 10px; font-family: var(--font-serif); font-size: 30px; font-weight: 500; line-height: 1.14; letter-spacing: -0.01em; }
+    .ob-lead { margin: 0 0 22px; font-size: 15px; line-height: 1.55; color: var(--muted); }
+    .ob-foot { display: flex; gap: 10px; margin-top: auto; padding-top: 22px; }
+    .ob-foot .btn-primary { flex: 1 1 0; }
+    .ob-foot .btn-secondary { flex: 0 0 auto; }
+    .photo-well { display: flex; align-items: center; gap: 14px; margin: 2px 0 20px; }
+    .photo-disc { width: 72px; height: 72px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); }
+    .photo-disc img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-disc .ic { --ic: 28px; }
+    .photo-actions { display: grid; gap: 2px; min-width: 0; }
+    .photo-btn { min-height: 32px; padding: 0; border: 0; background: transparent; color: var(--accent-ink); font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; }
+    .photo-btn.photo-remove { color: var(--faint); font-weight: 500; }
+    .rec-list { display: grid; gap: 10px; }
+    .rec-card { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); color: var(--text); text-align: left; cursor: pointer; }
+    .rec-card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+    .rec-icon { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+    .rec-card[aria-pressed="true"] .rec-icon { background: var(--accent); color: var(--accent-on); }
+    .rec-icon .ic { --ic: 18px; }
+    .rec-text { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+    .rec-name { font-size: 15px; font-weight: 600; }
+    .rec-meta { font-size: 13px; color: var(--muted); }
+    .rec-check { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 999px; color: transparent; }
+    .rec-card[aria-pressed="true"] .rec-check { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
+    .rec-check .ic { --ic: 14px; }
+    .ob-link { align-self: flex-start; margin-top: 14px; padding: 8px 0; border: 0; background: transparent; color: var(--accent-ink); font-size: 14px; font-weight: 600; cursor: pointer; }
+
+    /* ── Share poster ─────────────────────────────────────────── */
+    .poster {
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      display: flex;
+      flex-direction: column;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+    .poster-brand { display: flex; align-items: center; gap: 5px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+    .poster-dot { width: 6px; height: 6px; flex: none; border-radius: 999px; background: var(--accent); }
+    .poster-mark { font-size: 7px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+    .poster-range { margin-left: auto; font-size: 7px; color: var(--muted); }
+    .poster-id { display: flex; align-items: center; gap: 7px; margin-top: 10px; }
+    .poster-avatar { width: 24px; height: 24px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font-family: var(--font-serif); font-size: 12px; }
+    .poster-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .poster-name { font-family: var(--font-serif); font-size: 14px; font-weight: 500; }
+    .poster-sub { margin-left: auto; font-size: 7px; color: var(--muted); }
+    .poster-hero { display: flex; align-items: flex-end; gap: 8px; margin-top: 8px; }
+    .poster-pct { font-family: var(--font-serif); font-size: 42px; font-weight: 500; line-height: .86; letter-spacing: -.02em; }
+    .poster-pct > span { font-size: 20px; color: var(--muted); }
+    .poster-trend { margin-bottom: 6px; padding: 3px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font-size: 8px; font-weight: 600; }
+    .poster-trend.is-down { background: rgba(158, 59, 49, .12); color: var(--danger); }
+    .poster-trend.is-flat { background: var(--surface-2); color: var(--muted); }
+    .poster-cap { margin: 2px 0 0; font-size: 8px; color: var(--muted); }
+    .poster-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 9px; }
+    .poster-tile { display: grid; gap: 2px; padding: 6px 7px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    .poster-k { font-size: 6px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .poster-v { font-family: var(--font-serif); font-size: 14px; font-weight: 500; }
+    .poster-v small { font-size: 9px; color: var(--muted); }
+    .poster-bars { flex: 1 1 auto; min-height: 34px; display: flex; align-items: flex-end; justify-content: space-between; gap: 4px; margin-top: 10px; }
+    .poster-bar-slot { flex: 1 1 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; }
+    .poster-bar { width: 100%; border-radius: 3px; background: var(--line); }
+    .poster-bar.is-today { background: var(--accent); }
+    .poster-letter { font-size: 7px; color: var(--muted); }
+    .poster-letter.is-today { color: var(--text); font-weight: 600; }
+    .poster-list { list-style: none; margin: 8px 0 0; padding: 0; }
+    .poster-list li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 8px; }
+    .poster-list li span:last-child { color: var(--accent-ink); font-weight: 600; }
+    .poster-list li.is-empty { justify-content: flex-start; color: var(--muted); }
+    .poster-foot { margin-top: auto; padding-top: 6px; border-top: 1px solid var(--line); font-size: 6px; color: var(--faint); }
+    .profile-disc { overflow: hidden; }
+    .profile-disc img { width: 100%; height: 100%; object-fit: cover; border-radius: 999px; }
+    .profile-share { margin: 14px 0 4px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+      }
+    }
+    @media (max-width: 340px) {
+      .pill button { min-width: 74px; }
+      .top { padding-left: 16px; padding-right: 16px; }
+      .stat, .section, .screen { padding-left: 16px; padding-right: 16px; }
+      .new-habit-foot { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="phone-frame" data-phone-shell data-platform="android">
+    <span class="hardware-button volume" aria-hidden="true"></span>
+    <span class="hardware-button power" aria-hidden="true"></span>
+
+    <section class="phone-screen" data-phone-screen>
+      <main class="phone-content" data-phone-content>
+        <div class="app" id="app"></div>
+      </main>
+
+      <nav class="pill" id="pill" aria-label="Main" hidden>
+        <button type="button" data-action="tab" data-tab="today">
+          <span class="ic" data-icon="home"></span><span>Today</span>
+        </button>
+        <button type="button" data-action="tab" data-tab="insights">
+          <span class="ic" data-icon="chart"></span><span>Insights</span>
+        </button>
+        <button type="button" data-action="tab" data-tab="routines">
+          <span class="ic" data-icon="layers"></span><span>Routines</span>
+        </button>
+        <button type="button" data-action="tab" data-tab="profile">
+          <span class="ic" data-icon="person"></span><span>Profile</span>
+        </button>
+      </nav>
+
+      <div class="overlay" id="overlay" hidden>
+        <div class="scrim" data-action="modal-close"></div>
+        <div id="overlaySlot"></div>
+      </div>
+
+      <div class="status-bar" aria-hidden="true">
+        <span class="status-time" id="statusTime">9:41</span>
+        <span class="status-cutout-zone"></span>
+        <span class="status-icons">
+          <svg class="wifi" viewBox="0 0 16 12"><path d="M8 11.4 6.55 9.95a2.05 2.05 0 0 1 2.9 0L8 11.4Zm3.58-3.55-1.16 1.16a3.43 3.43 0 0 0-4.84 0L4.42 7.85a5.08 5.08 0 0 1 7.16 0Zm3-2.95-1.16 1.16a7.67 7.67 0 0 0-10.84 0L1.42 4.9a9.31 9.31 0 0 1 13.16 0Z"/></svg>
+          <svg class="cellular" viewBox="0 0 14 12"><path d="M1 11h2V8.5H1V11Zm3.35 0h2V6H4.35v5Zm3.35 0h2V3.5h-2V11Zm3.35 0h2V1h-2v10Z"/></svg>
+          <svg class="battery" viewBox="0 0 9 14"><path d="M3 0h3v1H3V0ZM2 1.5h5a1.25 1.25 0 0 1 1.25 1.25v9.75A1.5 1.5 0 0 1 6.75 14h-4.5a1.5 1.5 0 0 1-1.5-1.5V2.75A1.25 1.25 0 0 1 2 1.5Z"/></svg>
+        </span>
+      </div>
+      <div class="punch-hole" aria-hidden="true"></div>
+      <div class="gesture-indicator" aria-hidden="true"></div>
+    </section>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ═══════════════ Icons ═══════════════ */
+  var ICONS = {
+    walk: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h5M4 13h9M4 8h13"/><circle cx="17.5" cy="18" r="1.6"/></svg>',
+    book: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15.5H7.5A2.5 2.5 0 0 0 5 21Z"/><path d="M9 7.5h6"/></svg>',
+    water: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4c3.2 3.5 5.5 6.4 5.5 9.1a5.5 5.5 0 1 1-11 0c0-2.7 2.3-5.6 5.5-9.1Z"/></svg>',
+    timer: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.3l2.6 1.6"/></svg>',
+    check: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.6l4.4 4.3L19 6.9"/></svg>',
+    plus: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    minus: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14"/></svg>',
+    back: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+    chevron: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+    person: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.4" r="3.6"/><path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0"/></svg>',
+    home: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.6 12 4l8 6.6V20a1 1 0 0 1-1 1h-4.6v-6h-4.8v6H5a1 1 0 0 1-1-1Z"/></svg>',
+    chart: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8.5 16v-4.5M13 16V8M17.5 16v-6.5"/></svg>',
+    layers: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8.5 4.6L12 12 3.5 7.6Z"/><path d="m4 12.4 8 4.3 8-4.3"/><path d="m4 16.9 8 4.3 8-4.3"/></svg>',
+    play: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M8.4 5.6a1 1 0 0 1 1.5-.86l8 6.4a1 1 0 0 1 0 1.72l-8 6.4a1 1 0 0 1-1.5-.86Z"/></svg>',
+    pause: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.6" height="14" rx="1.3"/><rect x="13.4" y="5" width="3.6" height="14" rx="1.3"/></svg>',
+    up: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"/></svg>',
+    down: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13M6.5 12.5 12 18l5.5-5.5"/></svg>',
+    flat: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></svg>',
+    more: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5.2" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18.8" r="1.7"/></svg>',
+    pencil: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5h3.2L19 8.2a1.7 1.7 0 0 0 0-2.4l-.8-.8a1.7 1.7 0 0 0-2.4 0L4.5 16.3Z"/><path d="m14.8 6.9 2.3 2.3"/></svg>',
+    trash: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5h15M9.5 6.5V4.8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.7M6.5 6.5l.8 12.2a1.6 1.6 0 0 0 1.6 1.5h6.2a1.6 1.6 0 0 0 1.6-1.5l.8-12.2"/></svg>'
+  };
+  function ico(name) { return ICONS[name] || ICONS.check; }
+  function paintIcons(root) {
+    var nodes = (root || document).querySelectorAll("[data-icon]");
+    Array.prototype.forEach.call(nodes, function (node) {
+      var name = node.getAttribute("data-icon");
+      if (ICONS[name]) node.innerHTML = ICONS[name];
+    });
+  }
+
+  /* ═══════════════ Date helpers ═══════════════ */
+  var WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var LETTERS_MON = ["M", "T", "W", "T", "F", "S", "S"];
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function dateKey(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function diffDays(a, b) {
+    return Math.round((startOfDay(b) - startOfDay(a)) / 86400000);
+  }
+  var NOW = new Date();
+  var TODAY = startOfDay(NOW);
+  var TODAY_KEY = dateKey(TODAY);
+
+  function eyebrowDate(d) { return WEEKDAY_SHORT[d.getDay()] + ", " + d.getDate() + " " + MONTHS[d.getMonth()]; }
+  function shortDate(d) { return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3); }
+
+  function weekStartFor(d) {
+    var wd = d.getDay(); // 0 Sun
+    var offset = state.weekStartsMonday ? ((wd + 6) % 7) : wd;
+    return addDays(d, -offset);
+  }
+  function weekDays(ref) {
+    var start = weekStartFor(ref);
+    return [0, 1, 2, 3, 4, 5, 6].map(function (i) { return addDays(start, i); });
+  }
+  function letterFor(d) {
+    if (state.weekStartsMonday) return LETTERS_MON[(d.getDay() + 6) % 7];
+    return ["S", "M", "T", "W", "T", "F", "S"][d.getDay()];
+  }
+
+  /* ═══════════════ Store ═══════════════ */
+  var STORE_KEY = "habit_tracker.state.v1";
+  var UNREADABLE_KEY = "habit_tracker.state.unreadable";
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  var darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+  function freshState() {
+    return {
+      habits: [],
+      routines: [],
+      history: {},
+      themeMode: "system",
+      remindersOn: true,
+      reminderHour: 8,
+      reminderMinute: 0,
+      weekStartsMonday: true,
+      runningHabitId: null,
+      timerBaseSeconds: 0,
+      timerStartedAt: null,
+      dayKey: TODAY_KEY,
+      profile: { name: "", photo: "", onboarded: false }
+    };
+  }
+
+  var STARTER_HABITS = [
+    { key: "water", name: "Water", kind: "count", icon: "water", target: 8, unit: "glasses", meta: "8 glasses a day" },
+    { key: "gym", name: "Gym", kind: "timer", icon: "timer", target: 45, unit: "min", meta: "45 minutes a day" },
+    { key: "read", name: "Read", kind: "check", icon: "book", target: 1, unit: "", meta: "Once a day" },
+    { key: "walk", name: "Walk", kind: "count", icon: "walk", target: 8000, unit: "steps", meta: "8,000 steps a day" },
+    { key: "sleep", name: "Sleep by 11", kind: "check", icon: "moon", target: 1, unit: "", meta: "Once a day" }
+  ];
+
+  var STARTER_ROUTINES = [
+    { key: "morning", name: "Morning", habitKeys: ["water", "read"] },
+    { key: "evening", name: "Evening", habitKeys: ["walk", "sleep"] }
+  ];
+
+  var HABIT_IDEAS = [
+    { key: "water", group: "Health", name: "Drink water", kind: "count", icon: "water", target: 8, unit: "glasses" },
+    { key: "sleep", group: "Health", name: "Sleep by 11", kind: "check", icon: "moon", target: 1, unit: "" },
+    { key: "walk", group: "Movement", name: "Walk", kind: "count", icon: "walk", target: 8000, unit: "steps" },
+    { key: "gym", group: "Movement", name: "Gym", kind: "timer", icon: "timer", target: 45, unit: "min" },
+    { key: "stretch", group: "Movement", name: "Stretch", kind: "timer", icon: "up", target: 5, unit: "min" },
+    { key: "read", group: "Mind", name: "Read", kind: "check", icon: "book", target: 1, unit: "" },
+    { key: "meditate", group: "Mind", name: "Meditate", kind: "timer", icon: "moon", target: 10, unit: "min" },
+    { key: "language", group: "Mind", name: "Practice a language", kind: "timer", icon: "book", target: 15, unit: "min" },
+    { key: "tidy", group: "Home", name: "Tidy for 10", kind: "timer", icon: "home", target: 10, unit: "min" },
+    { key: "bed", group: "Home", name: "Make the bed", kind: "check", icon: "home", target: 1, unit: "" }
+  ];
+
+  function sanitize(raw) {
+    if (!raw || typeof raw !== "object" || !Array.isArray(raw.habits)) return null;
+    var habits = raw.habits.filter(function (h) {
+      return h && typeof h.id === "string" && typeof h.name === "string";
+    }).map(function (h) {
+      var kind = (h.kind === "count" || h.kind === "timer") ? h.kind : "check";
+      return {
+        id: h.id,
+        name: h.name,
+        kind: kind,
+        icon: typeof h.icon === "string" ? h.icon : (kind === "count" ? "water" : kind === "timer" ? "timer" : "check"),
+        target: typeof h.target === "number" && h.target > 0 ? h.target : 1,
+        unit: typeof h.unit === "string" ? h.unit : "",
+        checked: !!h.checked,
+        count: typeof h.count === "number" ? h.count : 0,
+        seconds: typeof h.seconds === "number" ? h.seconds : 0
+      };
+    });
+    var routines = Array.isArray(raw.routines) ? raw.routines.filter(function (r) {
+      return r && typeof r.id === "string" && typeof r.name === "string";
+    }).map(function (r) {
+      var known = {};
+      habits.forEach(function (h) { known[h.id] = true; });
+      var ids = Array.isArray(r.habitIds) ? r.habitIds.filter(function (id) { return typeof id === "string" && known[id]; }) : [];
+      return { id: r.id, name: r.name, habitIds: ids };
+    }) : [];
+    var history = {};
+    if (raw.history && typeof raw.history === "object") {
+      Object.keys(raw.history).forEach(function (k) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(k) && Array.isArray(raw.history[k])) {
+          history[k] = raw.history[k].filter(function (id) { return typeof id === "string"; });
+        }
+      });
+    }
+    var progress = {};
+    return {
+      habits: habits,
+      routines: routines,
+      history: history,
+      themeMode: raw.themeMode === "light" || raw.themeMode === "dark" ? raw.themeMode : "system",
+      remindersOn: raw.remindersOn !== false,
+      reminderHour: typeof raw.reminderHour === "number" ? raw.reminderHour : 8,
+      reminderMinute: typeof raw.reminderMinute === "number" ? raw.reminderMinute : 0,
+      weekStartsMonday: raw.weekStartsMonday !== false,
+      runningHabitId: typeof raw.runningHabitId === "string" ? raw.runningHabitId : null,
+      timerBaseSeconds: typeof raw.timerBaseSeconds === "number" ? raw.timerBaseSeconds : 0,
+      timerStartedAt: typeof raw.timerStartedAt === "number" ? raw.timerStartedAt : null,
+      dayKey: typeof raw.dayKey === "string" ? raw.dayKey : TODAY_KEY,
+      profile: {
+        name: raw.profile && typeof raw.profile.name === "string" ? raw.profile.name.slice(0, 60) : "",
+        photo: raw.profile && typeof raw.profile.photo === "string" && raw.profile.photo.indexOf("data:image/") === 0 ? raw.profile.photo : "",
+        onboarded: !!(raw.profile && raw.profile.onboarded === true)
+      }
+    };
+  }
+
+  var storageOk = (function () {
+    try {
+      window.localStorage.setItem("__probe__", "1");
+      window.localStorage.removeItem("__probe__");
+      return true;
+    } catch (err) { return false; }
+  })();
+  var memoryStore = null;
+
+  function loadState() {
+    var blob = null;
+    if (storageOk) {
+      try {
+        var stored = window.localStorage.getItem(STORE_KEY);
+        if (stored) {
+          try { blob = JSON.parse(stored); }
+          catch (parseErr) {
+            try { window.localStorage.setItem(UNREADABLE_KEY, stored); } catch (e2) { /* ignore */ }
+            blob = null;
+          }
+        }
+      } catch (err) { storageOk = false; }
+    }
+    if (blob === null && memoryStore) return memoryStore;
+    if (blob && !blob.profile) return freshState();
+    var clean = sanitize(blob);
+    if (clean) {
+      if (clean.runningHabitId) {
+        var found = clean.habits.some(function (h) { return h.id === clean.runningHabitId; });
+        if (!found || typeof clean.timerStartedAt !== "number") {
+          clean.runningHabitId = null; clean.timerStartedAt = null; clean.timerBaseSeconds = 0;
+        }
+      }
+      return clean;
+    }
+    return freshState();
+  }
+
+  var state = loadState();
+
+  function persist() {
+    memoryStore = state;
+    if (!storageOk) return;
+    try { window.localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    catch (err) { storageOk = false; }
+  }
+
+  if (storageOk) {
+    try {
+      if (!window.localStorage.getItem(STORE_KEY)) persist();
+    } catch (err) { /* ignore */ }
+  }
+
+  /* ═══════════════ Derived data ═══════════════ */
+  function byId(id) {
+    for (var i = 0; i < state.habits.length; i += 1) if (state.habits[i].id === id) return state.habits[i];
+    return null;
+  }
+  function routineById(id) {
+    for (var i = 0; i < state.routines.length; i += 1) if (state.routines[i].id === id) return state.routines[i];
+    return null;
+  }
+  function isDone(h) {
+    if (!h) return false;
+    if (h.kind === "check") return !!h.checked;
+    if (h.kind === "count") return h.count >= h.target;
+    return h.seconds >= h.target * 60;
+  }
+  function ratio(h) {
+    if (!h) return 0;
+    if (h.kind === "check") return h.checked ? 1 : 0;
+    if (h.kind === "count") return h.target ? Math.min(1, h.count / h.target) : 0;
+    return h.target ? Math.min(1, h.seconds / (h.target * 60)) : 0;
+  }
+  function doneCount() { return state.habits.filter(isDone).length; }
+  function completionPct() {
+    return state.habits.length ? Math.round(doneCount() / state.habits.length * 100) : 0;
+  }
+  function doneOn(key, habitId) {
+    if (key === TODAY_KEY) { var h = byId(habitId); return isDone(h); }
+    var list = state.history[key];
+    return !!(list && list.indexOf(habitId) !== -1);
+  }
+  function streakOf(h) {
+    var cursor = isDone(h) ? TODAY : addDays(TODAY, -1);
+    var n = 0;
+    while (n < 4000) {
+      if (!doneOn(dateKey(cursor), h.id)) break;
+      n += 1;
+      cursor = addDays(cursor, -1);
+    }
+    return n;
+  }
+  function bestStreakOf(h) {
+    var keys = Object.keys(state.history).slice().sort();
+    if (!keys.length) return isDone(h) ? 1 : 0;
+    var first = new Date(keys[0] + "T00:00:00");
+    var best = 0, run = 0;
+    var cursor = first;
+    var guard = 0;
+    while (diffDays(cursor, TODAY) >= 0 && guard < 5000) {
+      if (doneOn(dateKey(cursor), h.id)) { run += 1; if (run > best) best = run; }
+      else run = 0;
+      cursor = addDays(cursor, 1);
+      guard += 1;
+    }
+    return best;
+  }
+
+  function fmtHM(seconds) {
+    var total = Math.max(0, Math.floor(seconds));
+    var h = Math.floor(total / 3600);
+    var m = Math.floor((total % 3600) / 60);
+    if (h > 0) return h + "h " + m + "m";
+    return m + "m";
+  }
+  function fmtMinutes(minutes) {
+    var m = Math.max(0, Math.round(minutes));
+    if (m >= 60) {
+      var h = Math.floor(m / 60);
+      var rem = m % 60;
+      return rem ? h + "h " + rem + "m" : h + "h";
+    }
+    return m + "m";
+  }
+  function fmtClock(seconds) {
+    var total = Math.max(0, Math.floor(seconds));
+    var h = Math.floor(total / 3600);
+    var m = Math.floor((total % 3600) / 60);
+    var s = total % 60;
+    return h + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+  function fmtTime(hour, minute) {
+    return String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+  }
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* ═══════════════ Rollover ═══════════════ */
+  function commitRunningSeconds() {
+    if (!state.runningHabitId || typeof state.timerStartedAt !== "number") return;
+    var h = byId(state.runningHabitId);
+    if (!h) { state.runningHabitId = null; state.timerStartedAt = null; state.timerBaseSeconds = 0; return; }
+    h.seconds = Math.min(86400, Math.floor(liveSeconds(h)));
+  }
+
+  function rollover() {
+    var now = new Date();
+    var currentKey = dateKey(now);
+    if (state.dayKey === currentKey) return false;
+    commitRunningSeconds();
+    var archived = state.habits.filter(isDone).map(function (h) { return h.id; });
+    if (archived.length) state.history[state.dayKey] = archived;
+    state.habits.forEach(function (h) { h.checked = false; h.count = 0; h.seconds = 0; });
+    state.runningHabitId = null;
+    state.timerStartedAt = null;
+    state.timerBaseSeconds = 0;
+    state.dayKey = currentKey;
+    NOW = now;
+    TODAY = startOfDay(now);
+    TODAY_KEY = currentKey;
+    persist();
+    return true;
+  }
+
+  function liveSeconds(h) {
+    if (state.runningHabitId === h.id && typeof state.timerStartedAt === "number") {
+      return Math.min(86400, state.timerBaseSeconds + (Date.now() - state.timerStartedAt) / 1000);
+    }
+    return h.seconds;
+  }
+  function isRunning(h) { return state.runningHabitId === h.id; }
+
+  /* ═══════════════ Theme ═══════════════ */
+  var rootEl = document.documentElement;
+  function resolveTheme() {
+    var mode = state.themeMode;
+    var resolved = mode === "system" ? (darkQuery.matches ? "dark" : "light") : mode;
+    rootEl.setAttribute("data-theme", resolved);
+  }
+  function themeLabel() {
+    return state.themeMode === "dark" ? "Dark" : state.themeMode === "light" ? "Light" : "System";
+  }
+  darkQuery.addEventListener("change", function () { if (state.themeMode === "system") resolveTheme(); });
+
+  /* ═══════════════ Navigation ═══════════════ */
+  var app = document.getElementById("app");
+  var pill = document.getElementById("pill");
+  var overlay = document.getElementById("overlay");
+  var overlaySlot = document.getElementById("overlaySlot");
+  var phoneContent = document.querySelector("[data-phone-content]");
+
+  var stack = [state.profile.onboarded ? { name: "today" } : { name: "onboarding" }];
+  var scrollPositions = { today: 0, insights: 0, routines: 0, profile: 0 };
+  var TOP_LEVEL = { today: 1, insights: 1, routines: 1, profile: 1 };
+  var historyDepth = 0;
+  var suppressPop = false;
+
+  function currentScreen() { return stack[stack.length - 1]; }
+  function go(name, params) {
+    stack.push(Object.assign({ name: name }, params || {}));
+    pushHistory();
+    render(true);
+  }
+  function goBack() {
+    if (stack.length > 1) {
+      stack.pop();
+      var screen = currentScreen();
+      if (TOP_LEVEL[screen.name]) render(false, true);
+      else render(true);
+    }
+  }
+  function switchTab(tab) {
+    stack = [{ name: tab }];
+    render(false, true);
+  }
+
+  function pushHistory() {
+    try { window.history.pushState({ app: true }, ""); historyDepth += 1; } catch (err) { /* ignore */ }
+  }
+  function dropHistory() {
+    if (historyDepth <= 0) return;
+    historyDepth -= 1;
+    suppressPop = true;
+    try { window.history.back(); } catch (err) { suppressPop = false; }
+  }
+
+  function rememberScroll() {
+    var name = currentScreen().name;
+    if (TOP_LEVEL[name]) scrollPositions[name] = phoneContent.scrollTop;
+  }
+
+  /* ═══════════════ Render ═══════════════ */
+  function render(resetScroll, restoreTab) {
+    rollover();
+    var screen = currentScreen();
+    var html = screenHTML(screen);
+    app.innerHTML = html;
+    paintIcons(app);
+
+    var topLevel = !!TOP_LEVEL[screen.name];
+    pill.hidden = !topLevel;
+    app.style.paddingBottom = topLevel ? "118px" : "40px";
+    phoneContent.classList.toggle("is-onboarding", screen.name === "onboarding");
+    Array.prototype.forEach.call(pill.querySelectorAll("button"), function (btn) {
+      if (topLevel && btn.dataset.tab === screen.name) btn.setAttribute("aria-current", "page");
+      else btn.removeAttribute("aria-current");
+    });
+
+    if (restoreTab) phoneContent.scrollTop = scrollPositions[screen.name] || 0;
+    else if (resetScroll) phoneContent.scrollTop = 0;
+
+    startTickerIfNeeded();
+  }
+
+  /* ═══════════════ Screen builders ═══════════════ */
+  function screenHTML(screen) {
+    switch (screen.name) {
+      case "today": return todayHTML();
+      case "insights": return insightsHTML();
+      case "routines": return routinesHTML();
+      case "counter": return counterHTML(screen.id);
+      case "timer": return timerHTML(screen.id);
+      case "routine-run": return routineRunHTML(screen.id);
+      case "habit-new": return newHabitHTML();
+      case "onboarding": return onboardingHTML();
+      case "profile": return profileHTML();
+      default: return todayHTML();
+    }
+  }
+
+  function ringHTML(h) {
+    var p = ratio(h);
+    var r = 19.4;
+    var c = 2 * Math.PI * r;
+    var offset = c * (1 - p);
+    return '<span class="ring">' +
+      '<svg class="arc-svg" viewBox="0 0 44 44" aria-hidden="true">' +
+        '<circle class="arc-track" cx="22" cy="22" r="' + r + '" fill="none" stroke-width="2"/>' +
+        '<circle class="arc-fill" cx="22" cy="22" r="' + r + '" fill="none" stroke-width="2"' +
+          ' stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '"/>' +
+      '</svg>' +
+      '<span class="ring-icon">' + ico(h.icon) + '</span>' +
+    '</span>';
+  }
+
+  function habitSub(h) {
+    if (h.kind === "count") return { text: h.count + " of " + h.target + " " + unitWord(h), warn: false };
+    if (h.kind === "timer") {
+      return { text: fmtHM(liveSeconds(h)) + " of " + fmtMinutes(h.target), warn: false };
+    }
+    if (isDone(h)) return { text: "Done today", warn: false };
+    var s = streakOf(h);
+    if (s > 0) return { text: s + "-day streak", warn: false };
+    var hist = state.history;
+    var hasHistory = Object.keys(hist).some(function (k) { return hist[k].indexOf(h.id) !== -1; });
+    var yKey = dateKey(addDays(TODAY, -1));
+    var y2Key = dateKey(addDays(TODAY, -2));
+    var missedBoth = !doneOn(yKey, h.id) && !doneOn(y2Key, h.id);
+    if (hasHistory && missedBoth) return { text: "Streak broken yesterday", warn: true };
+    return { text: "Once a day", warn: false };
+  }
+
+  function habitRowHTML(h) {
+    var sub = habitSub(h);
+    var done = isDone(h);
+    var trail = '<div class="habit-tail">';
+    if (h.kind === "count") {
+      trail +=
+        '<button type="button" class="mini-step" data-action="count-dec" data-id="' + h.id + '" aria-label="One less ' + esc(h.name) + '"' + (h.count <= 0 ? " disabled" : "") + '>' + ico("minus") + '</button>' +
+        '<span class="count-value" aria-hidden="true">' + h.count + '</span>' +
+        '<button type="button" class="mini-step" data-action="count-inc" data-id="' + h.id + '" aria-label="One more ' + esc(h.name) + '"' + (h.count >= h.target ? " disabled" : "") + '>' + ico("plus") + '</button>';
+    }
+    trail += '<button type="button" class="row-more" data-action="habit-menu" data-id="' + h.id + '" aria-label="Options for ' + esc(h.name) + '">' + ico("more") + '</button></div>';
+
+    var mainAttrs = h.kind === "check"
+      ? ' role="checkbox" aria-checked="' + (done ? "true" : "false") + '" data-action="toggle-check"'
+      : ' data-action="' + (h.kind === "count" ? "open-counter" : "open-timer") + '"';
+
+    return '<li class="habit-item' + (done ? " is-done" : "") + '">' +
+      '<div class="habit-row">' +
+        '<button type="button" class="habit-main" data-id="' + h.id + '"' + mainAttrs +
+          ' aria-label="' + esc(h.name) + '. ' + esc(sub.text) + '">' +
+          ringHTML(h) +
+          '<span class="habit-text">' +
+            '<span class="habit-name">' + esc(h.name) + '</span>' +
+            '<span class="habit-sub' + (sub.warn ? " is-warn" : "") + '">' + esc(sub.text) + '</span>' +
+          '</span>' +
+        '</button>' +
+        trail +
+      '</div>' +
+    '</li>';
+  }
+
+  function routineHabits(r) {
+    return (r.habitIds || []).map(function (id) { return byId(id); }).filter(Boolean);
+  }
+  function routineDoneCount(r) {
+    return routineHabits(r).filter(isDone).length;
+  }
+  function habitTypeLine(h) {
+    if (h.kind === "count") return "Count · " + h.target + " " + unitWord(h);
+    if (h.kind === "timer") return "Timer · " + h.target + " min";
+    return "Check off · once a day";
+  }
+  function habitShortValue(h) {
+    if (h.kind === "count") return h.count + "/" + h.target;
+    if (h.kind === "timer") return fmtHM(liveSeconds(h));
+    return isDone(h) ? "Done" : "Tap";
+  }
+  function setHabitDone(h, done) {
+    if (h.kind === "check") h.checked = done;
+    else if (h.kind === "count") h.count = done ? h.target : 0;
+    else {
+      h.seconds = done ? Math.max(h.seconds, h.target * 60) : 0;
+      if (state.runningHabitId === h.id) {
+        state.runningHabitId = null;
+        state.timerStartedAt = null;
+        state.timerBaseSeconds = 0;
+        startTickerIfNeeded();
+      }
+    }
+  }
+
+  function routineCardHTML(r, compact) {
+    var habits = routineHabits(r);
+    var total = habits.length;
+    var done = habits.filter(isDone).length;
+    var minutes = habits.reduce(function (sum, h) { return sum + (h.kind === "timer" ? h.target : 0); }, 0);
+    var meta = total
+      ? (total === 1 ? "1 habit" : total + " habits") + (minutes ? " · " + minutes + " min" : "")
+      : "No habits yet";
+    var stateLine = !total ? "Add habits to this routine" : done === total ? "Done today" : done === 0 ? "Not started" : done + " of " + total + " done";
+    if (compact) {
+      return '<div class="routine-card">' +
+        '<button type="button" class="routine-main" data-action="open-routine" data-id="' + r.id + '">' +
+          '<span class="routine-disc">' + (total ? done + "/" + total : "0") + '</span>' +
+          '<span class="routine-text">' +
+            '<span class="routine-name">' + esc(r.name) + '</span>' +
+            '<span class="routine-meta">' + meta + '</span>' +
+            '<span class="routine-state">' + stateLine + '</span>' +
+          '</span>' +
+          '<span class="chev" aria-hidden="true">' + ico("chevron") + '</span>' +
+        '</button>' +
+        '<button type="button" class="row-more" data-action="routine-menu" data-id="' + r.id + '" aria-label="Options for ' + esc(r.name) + '">' + ico("more") + '</button>' +
+      '</div>';
+    }
+
+    var currentId = null;
+    for (var i = 0; i < habits.length; i += 1) {
+      if (!isDone(habits[i])) { currentId = habits[i].id; break; }
+    }
+    var rows = habits.map(function (h) {
+      var isDoneHabit = isDone(h);
+      var cls = isDoneHabit ? "is-done" : (h.id === currentId ? "is-current" : "is-upcoming");
+      return '<li class="step-item ' + cls + '">' +
+        '<span class="step-dot" aria-hidden="true">' + (isDoneHabit ? '<span class="ic">' + ICONS.check + '</span>' : '') + '</span>' +
+        '<span class="step-name">' + esc(h.name) + '</span>' +
+        '<span class="step-mins">' + habitShortValue(h) + '</span>' +
+      '</li>';
+    }).join("");
+
+    return '<article class="card routine-lg">' +
+      '<div class="routine-head">' +
+        '<button type="button" class="routine-lg-head" data-action="open-routine" data-id="' + r.id + '">' +
+          '<span class="routine-disc">' + (total ? done + "/" + total : "0") + '</span>' +
+          '<span class="routine-text">' +
+            '<span class="routine-name">' + esc(r.name) + '</span>' +
+            '<span class="routine-meta">' + meta + '</span>' +
+            '<span class="routine-state">' + stateLine + '</span>' +
+          '</span>' +
+          '<span class="chev" aria-hidden="true">' + ico("chevron") + '</span>' +
+        '</button>' +
+        '<button type="button" class="row-more" data-action="routine-menu" data-id="' + r.id + '" aria-label="Options for ' + esc(r.name) + '">' + ico("more") + '</button>' +
+      '</div>' +
+      (total ? '<ul class="step-list">' + rows + '</ul>' : '') +
+    '</article>';
+  }
+
+  function todayHTML() {
+    if (!state.habits.length) return emptyTodayHTML();
+    var done = doneCount();
+    var total = state.habits.length;
+    var pct = completionPct();
+    return '<div class="top">' +
+        '<div>' +
+          '<p class="eyebrow">' + eyebrowDate(TODAY) + '</p>' +
+          '<h1 class="title">Today</h1>' +
+        '</div>' +
+      '</div>' +
+      '<div class="stat">' +
+        '<div class="stat-row">' +
+          '<p class="stat-num">' + done + ' <span class="of">of ' + total + ' done</span></p>' +
+          '<span class="stat-pct">' + pct + '%</span>' +
+        '</div>' +
+        '<div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="Completion today"><div class="track-fill" style="width:' + pct + '%"></div></div>' +
+      '</div>' +
+      '<section class="section" aria-labelledby="habitsLabel">' +
+        '<h2 class="section-title" id="habitsLabel">Habits</h2>' +
+        '<ul class="habit-list">' + state.habits.map(habitRowHTML).join("") + '</ul>' +
+        '<button type="button" class="dashed-row" data-action="new-habit">' + ico("plus") + 'New habit</button>' +
+      '</section>' +
+      (state.routines.length
+        ? '<section class="section" aria-labelledby="routinesLabel">' +
+            '<h2 class="section-title" id="routinesLabel">Routines</h2>' +
+            state.routines.map(function (r) { return routineCardHTML(r, true); }).join("") +
+          '</section>'
+        : "");
+  }
+
+  function emptyTodayHTML() {
+    return '<div class="top">' +
+        '<div>' +
+          '<p class="eyebrow">' + eyebrowDate(TODAY) + '</p>' +
+          '<h1 class="title">Today</h1>' +
+        '</div>' +
+      '</div>' +
+      '<div class="empty empty-center">' +
+        '<p class="eyebrow">A clean start</p>' +
+        '<h1>Add your first habit</h1>' +
+        '<p>Pick one thing worth repeating. Check it off, count it, or time it — the day\'s number starts with a single habit.</p>' +
+        '<button type="button" class="btn-primary btn-block" data-action="new-habit">Create a habit</button>' +
+        '<button type="button" class="link-btn" data-action="habit-ideas">Browse habit ideas</button>' +
+      '</div>';
+  }
+
+  function insightsHTML() {
+    if (!state.habits.length) {
+      return '<div class="top"><div><p class="eyebrow">' + eyebrowDate(TODAY) + '</p><h1 class="title">Insights</h1></div></div>' +
+        '<div class="empty empty-center"><p class="eyebrow">No data yet</p><h1>Nothing to chart yet</h1>' +
+        '<p>Once you record a few days, this page will show the week back as a percentage, seven bars and the streaks still running.</p>' +
+        '<button type="button" class="btn-primary btn-block" data-action="new-habit">Create a habit</button></div>';
+    }
+
+    var week = weekDays(TODAY);
+    var elapsed = Math.min(7, diffDays(week[0], TODAY) + 1);
+    var totalHabits = state.habits.length;
+    var weekDone = 0;
+    week.forEach(function (d, i) {
+      if (i >= elapsed) return;
+      var key = dateKey(d);
+      state.habits.forEach(function (h) { if (doneOn(key, h.id)) weekDone += 1; });
+    });
+    var weekPct = Math.round(weekDone / (totalHabits * elapsed) * 100);
+
+    var prevStart = addDays(week[0], -7);
+    var prevDone = 0;
+    for (var i = 0; i < elapsed; i += 1) {
+      var pKey = dateKey(addDays(prevStart, i));
+      state.habits.forEach(function (h) { if (doneOn(pKey, h.id)) prevDone += 1; });
+    }
+    var prevPct = Math.round(prevDone / (totalHabits * elapsed) * 100);
+    var trend = weekPct - prevPct;
+
+    var trendIcon = trend > 0 ? "up" : trend < 0 ? "down" : "flat";
+    var trendText = (trend > 0 ? "+" : "") + trend + "%";
+
+    var bars = week.map(function (d, idx) {
+      var key = dateKey(d);
+      var isFuture = diffDays(TODAY, d) > 0;
+      var dayDone = 0;
+      state.habits.forEach(function (h) { if (doneOn(key, h.id)) dayDone += 1; });
+      var pctDay = isFuture ? 0 : Math.round(dayDone / totalHabits * 100);
+      var hPx = isFuture || pctDay === 0 ? 0 : Math.max(4, Math.round(pctDay / 100 * 150));
+      return '<div class="bar-slot">' +
+        '<div class="bar' + (key === TODAY_KEY ? " is-today" : "") + (hPx === 0 ? " is-empty" : "") + '" style="height:' + hPx + 'px"></div>' +
+      '</div>';
+    }).join("");
+
+    var letters = week.map(function (d) {
+      return '<span class="' + (dateKey(d) === TODAY_KEY ? "is-today" : "") + '">' + letterFor(d) + '</span>';
+    }).join("");
+
+    var streaks = state.habits.map(function (h) { return { h: h, n: streakOf(h) }; })
+      .filter(function (item) { return item.n > 0; })
+      .sort(function (a, b) { return b.n - a.n; });
+
+    var streakRows = streaks.length
+      ? streaks.map(function (item) {
+          return '<div class="streak-row"><span>' + esc(item.h.name) + '</span><span class="val">' + item.n + ' ' + (item.n === 1 ? "day" : "days") + '</span></div>';
+        }).join("")
+      : '<p class="note">No running streaks right now. A streak starts the first day you complete a habit.</p>';
+
+    return '<div class="top">' +
+        '<div><p class="eyebrow">' + shortDate(week[0]) + ' – ' + shortDate(week[6]) + '</p><h1 class="title">Insights</h1></div>' +
+        '<button type="button" class="head-action" data-action="share-stats">Share</button>' +
+      '</div>' +
+      '<section class="section">' +
+        '<div class="card hero-card">' +
+          '<div class="hero-row">' +
+            '<p class="big-stat">' + weekPct + '<span class="pct">%</span></p>' +
+            '<span class="trend' + (trend === 0 ? " is-zero" : "") + '">' + ico(trendIcon) + '<span>' + trendText + '</span></span>' +
+          '</div>' +
+          '<p class="card-caption">completion this week</p>' +
+        '</div>' +
+        '<div class="card">' +
+          '<h2 class="section-title" style="margin-bottom:14px">Daily completion</h2>' +
+          '<div class="chart-wrap">' +
+            '<div class="axis"><span>100</span><span>50</span><span>0</span></div>' +
+            '<div class="plot">' + bars + '</div>' +
+          '</div>' +
+          '<div class="day-letters">' + letters + '</div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<h2 class="section-title" style="margin-bottom:6px">Streaks</h2>' +
+          streakRows +
+        '</div>' +
+      '</section>';
+  }
+
+  function routinesHTML() {
+    return '<div class="top">' +
+        '<div><p class="eyebrow">Step by step</p><h1 class="title">Routines</h1></div>' +
+        '<button type="button" class="head-plus" data-action="new-routine" aria-label="New routine">' + ico("plus") + '</button>' +
+      '</div>' +
+      '<section class="section">' +
+        (state.routines.length
+          ? state.routines.map(function (r) { return routineCardHTML(r, false); }).join("")
+          : '<div class="card"><h2 class="section-title" style="margin-bottom:6px">No routines yet</h2>' +
+            '<p class="note">A routine is a set of your habits that you run together — morning, evening — one after another.</p></div>') +
+        '<button type="button" class="dashed-row" data-action="new-routine">' + ico("plus") + 'New routine</button>' +
+      '</section>';
+  }
+
+  function dotSize(target) {
+    var inner = 340;
+    var gap = 6;
+    while (gap > 4 && (inner - (target - 1) * gap) / target < 16) gap -= 1;
+    var size = Math.floor((inner - (target - 1) * gap) / target);
+    return { size: Math.max(10, Math.min(26, size)), gap: gap };
+  }
+
+  function counterHTML(id) {
+    var h = byId(id);
+    if (!h) return todayHTML();
+    var pct = Math.round(ratio(h) * 100);
+    var ds = dotSize(h.target);
+    var dots = "";
+    for (var i = 0; i < h.target; i += 1) {
+      dots += '<span class="dot' + (i < h.count ? " is-on" : "") + '" style="width:' + ds.size + 'px;height:' + ds.size + 'px;margin-right:' + (i < h.target - 1 ? ds.gap : 0) + 'px"></span>';
+    }
+    var week = weekDays(TODAY);
+    var weekDots = week.map(function (d) {
+      var key = dateKey(d);
+      var on = doneOn(key, h.id);
+      return '<span class="week-dot' + (on ? " is-on" : "") + (key === TODAY_KEY ? " is-today" : "") + '"></span>';
+    }).join("");
+    var letters = week.map(function (d) { return '<span>' + letterFor(d) + '</span>'; }).join("");
+    var current = streakOf(h);
+    var best = bestStreakOf(h);
+
+    return '<div class="screen">' +
+      '<div class="head-bar">' +
+        '<button type="button" class="back" data-action="back" aria-label="Back">' + ico("back") + '</button>' +
+        '<button type="button" class="head-action" data-action="rename-habit" data-id="' + h.id + '">Edit</button>' +
+      '</div>' +
+      '<div class="counter-body">' +
+        '<div class="disc">' + ico(h.icon) + '</div>' +
+        '<h1 class="display-name">' + esc(h.name) + '</h1>' +
+        '<p class="target-line">' + h.target + ' ' + esc(unitWord(h)) + ' a day</p>' +
+        '<p class="big-count">' + h.count + '<span class="denom">/ ' + h.target + '</span></p>' +
+        '<div class="dot-row" role="img" aria-label="' + h.count + ' of ' + h.target + ' marked">' + dots + '</div>' +
+        '<div class="stepper-row">' +
+          '<button type="button" class="big-step" data-action="counter-dec" data-id="' + h.id + '" aria-label="One less"' + (h.count <= 0 ? " disabled" : "") + '>' + ico("minus") + '</button>' +
+          '<button type="button" class="big-step" data-action="counter-inc" data-id="' + h.id + '" aria-label="One more"' + (h.count >= h.target ? " disabled" : "") + '>' + ico("plus") + '</button>' +
+        '</div>' +
+        '<div class="full-cards">' +
+          '<div class="card streak-card">' +
+            '<div><p class="eyebrow">Current streak</p><p class="streak-num">' + current + ' ' + (current === 1 ? "day" : "days") + '</p></div>' +
+            '<p class="best">Best ' + best + ' ' + (best === 1 ? "day" : "days") + '</p>' +
+          '</div>' +
+          '<div class="card week-card">' +
+            '<p class="eyebrow" style="margin-bottom:0">This week</p>' +
+            '<div class="week-dots">' + weekDots + '</div>' +
+            '<div class="week-letters">' + letters + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function unitWord(h) {
+    if (h.kind === "count") return h.unit && h.unit !== "times" ? h.unit : (h.target === 1 ? "time" : "times");
+    if (h.kind === "timer") return "minutes";
+    return "time";
+  }
+
+  function timerHTML(id) {
+    var h = byId(id);
+    if (!h) return todayHTML();
+    var secs = liveSeconds(h);
+    var goal = h.target * 60;
+    var p = Math.min(1, secs / goal);
+    var r = 46;
+    var c = 2 * Math.PI * r;
+    var offset = c * (1 - p);
+    var running = isRunning(h);
+
+    return '<div class="screen">' +
+      '<div class="head-bar">' +
+        '<button type="button" class="back" data-action="back" aria-label="Back">' + ico("back") + '</button>' +
+        '<button type="button" class="head-action" data-action="timer-end" data-id="' + h.id + '">End</button>' +
+      '</div>' +
+      '<div class="timer-body">' +
+        '<p class="timer-name">' + esc(h.name) + '</p>' +
+        '<div class="timer-ring" id="timerRing" role="img" aria-label="Elapsed ' + fmtHM(secs) + ' of ' + fmtMinutes(h.target) + '">' +
+          '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+            '<circle class="track-c" cx="50" cy="50" r="' + r + '" fill="none" stroke-width="3"/>' +
+            '<circle class="value-c" id="timerArc" cx="50" cy="50" r="' + r + '" fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '"/>' +
+          '</svg>' +
+          '<div class="timer-center">' +
+            '<span class="timer-clock" id="timerClock">' + fmtClock(secs) + '</span>' +
+            '<span class="timer-of">of ' + fmtMinutes(h.target) + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="timer-start" id="timerToggle" data-action="timer-toggle" data-id="' + h.id + '" aria-label="' + (running ? "Pause" : "Start") + '">' +
+          ico(running ? "pause" : "play") +
+        '</button>' +
+        '<div class="card timer-goal">' +
+          '<p class="label">Today\'s goal</p>' +
+          '<p class="value" id="timerLogged">' + fmtHM(secs) + ' logged</p>' +
+        '</div>' +
+        '<button type="button" class="ghost-btn" data-action="timer-add30" data-id="' + h.id + '">Add 30 minutes</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function routineRunHTML(id) {
+    var r = routineById(id);
+    if (!r) return routinesHTML();
+    var habits = routineHabits(r);
+    var total = habits.length;
+    var done = habits.filter(isDone).length;
+    var currentId = null;
+    for (var i = 0; i < total; i += 1) {
+      if (!isDone(habits[i])) { currentId = habits[i].id; break; }
+    }
+
+    var segments = habits.map(function (h) {
+      var cls = isDone(h) ? "is-done" : (h.id === currentId ? "is-current" : "");
+      return '<span class="segment ' + cls + '"></span>';
+    }).join("");
+
+    var body = "";
+    if (!total) {
+      body = '<div class="card step-card">' +
+          '<p class="step-eyebrow">Empty routine</p>' +
+          '<h2 class="step-name">Made of habits</h2>' +
+          '<p class="step-meta">A routine is a set of your habits in order. Add a few and they will line up here.</p>' +
+          '<button type="button" class="btn-primary btn-block" data-action="edit-routine" data-id="' + r.id + '">Add habits</button>' +
+        '</div>';
+    } else if (done >= total) {
+      body = '<div class="card complete-card">' +
+          '<h2>Routine complete</h2>' +
+          '<p>' + esc(r.name) + ' is done for today.</p>' +
+        '</div>';
+    } else {
+      var rows = habits.map(function (h) {
+        var habitDone = isDone(h);
+        var cls = habitDone ? "is-done" : (h.id === currentId ? "is-current" : "is-upcoming");
+        return '<button type="button" class="routine-run-row ' + cls + '" data-action="routine-habit-toggle" data-id="' + h.id + '" aria-pressed="' + (habitDone ? "true" : "false") + '">' +
+          '<span class="routine-check" aria-hidden="true">' + (habitDone ? ico("check") : "") + '</span>' +
+          '<span class="routine-run-text">' +
+            '<span class="routine-run-name">' + esc(h.name) + '</span>' +
+            '<span class="routine-run-meta">' + esc(habitTypeLine(h)) + '</span>' +
+          '</span>' +
+          '<span class="routine-run-value">' + habitShortValue(h) + '</span>' +
+        '</button>';
+      }).join("");
+      body = '<p class="step-eyebrow" style="margin:14px 4px 8px">' + done + ' of ' + total + ' done · next: ' + esc((habits.filter(function (h) { return !isDone(h); })[0] || habits[0]).name) + '</p>' +
+        '<div class="routine-run-list">' + rows + '</div>';
+    }
+
+    var ghost = "";
+    if (done > 0) {
+      ghost = '<button type="button" class="ghost-btn ghost-muted" data-action="routine-reset" data-id="' + r.id + '">Reset today</button>';
+    }
+
+    return '<div class="screen">' +
+      '<div class="head-bar">' +
+        '<button type="button" class="back" data-action="back" aria-label="Back">' + ico("back") + '</button>' +
+        '<span class="eyebrow" style="margin:0">' + esc(r.name) + '</span>' +
+        '<button type="button" class="head-action" data-action="edit-routine" data-id="' + r.id + '">Edit</button>' +
+      '</div>' +
+      '<div class="segments" aria-hidden="true">' + segments + '</div>' +
+      body +
+      '<div style="text-align:center">' + ghost + '</div>' +
+    '</div>';
+  }
+
+  /* ═══════════════ Onboarding ═══════════════ */
+  var ob = { name: "", photo: "", step: 0, habits: {}, routines: {} };
+
+  function obReset() {
+    ob.name = "";
+    ob.photo = "";
+    ob.step = 0;
+    ob.habits = {};
+    ob.routines = {};
+    STARTER_HABITS.forEach(function (h) { ob.habits[h.key] = true; });
+    STARTER_ROUTINES.forEach(function (r) { ob.routines[r.key] = true; });
+  }
+  obReset();
+
+  var photoTarget = "profile";
+  var photoInput = document.createElement("input");
+  photoInput.type = "file";
+  photoInput.accept = "image/*";
+  photoInput.style.display = "none";
+  document.body.appendChild(photoInput);
+
+  function applyPhoto(url) {
+    if (photoTarget === "onboarding") {
+      ob.photo = url;
+      render(false);
+      return;
+    }
+    state.profile.photo = url;
+    persist();
+    if (modalOpen && overlaySlot.querySelector("#profileNameInput")) editProfileDialog();
+    else render(false);
+  }
+
+  photoInput.addEventListener("change", function () {
+    var file = photoInput.files && photoInput.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var side = Math.min(img.width, img.height);
+          var canvas = document.createElement("canvas");
+          canvas.width = 192;
+          canvas.height = 192;
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, 192, 192);
+          applyPhoto(canvas.toDataURL("image/jpeg", 0.82));
+        } catch (err) {
+          applyPhoto(reader.result);
+        }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function avatarHTML(size, photo, name, cls) {
+    if (photo) return '<span class="' + cls + '"><img src="' + photo + '" alt="" /></span>';
+    if (name) return '<span class="' + cls + '" aria-hidden="true">' + esc(name.trim().charAt(0).toUpperCase()) + '</span>';
+    return '<span class="' + cls + '" aria-hidden="true">' + ico("person") + '</span>';
+  }
+
+  function onboardingHTML() {
+    var step = ob.step;
+    var dots = [0, 1, 2].map(function (i) {
+      return '<span class="ob-dot' + (i === step ? " is-on" : "") + '"></span>';
+    }).join("");
+    var body = "";
+
+    if (step === 0) {
+      body =
+        '<p class="eyebrow">Welcome</p>' +
+        '<h1>Let’s make this yours.</h1>' +
+        '<p class="ob-lead">A name and a photo make the app personal. Everything stays on this device.</p>' +
+        '<div class="photo-well">' +
+          avatarHTML(72, ob.photo, ob.name, "photo-disc") +
+          '<div class="photo-actions">' +
+            '<button type="button" class="photo-btn" data-action="ob-photo">' + (ob.photo ? "Change photo" : "Add a photo") + '</button>' +
+            (ob.photo ? '<button type="button" class="photo-btn photo-remove" data-action="ob-photo-remove">Remove photo</button>' : "") +
+          '</div>' +
+        '</div>' +
+        '<label class="field-label" for="obName">Your name</label>' +
+        '<input class="field" id="obName" type="text" maxlength="40" autocomplete="given-name" placeholder="Alex" value="' + esc(ob.name) + '" style="margin-top:6px" data-autofocus />' +
+        '<div class="ob-foot"><button type="button" class="btn-primary" data-action="ob-next"' + (ob.name.trim() ? "" : " disabled") + '>Continue</button></div>';
+    } else if (step === 1) {
+      var habitCards = STARTER_HABITS.map(function (h) {
+        var on = !!ob.habits[h.key];
+        return '<button type="button" class="rec-card" data-action="ob-toggle" data-group="habits" data-key="' + h.key + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+          '<span class="rec-icon">' + ico(h.icon) + '</span>' +
+          '<span class="rec-text"><span class="rec-name">' + esc(h.name) + '</span><span class="rec-meta">' + esc(h.meta) + '</span></span>' +
+          '<span class="rec-check">' + ico("check") + '</span>' +
+        '</button>';
+      }).join("");
+      var own = state.habits.map(function (h) {
+        return '<div class="rec-card" aria-pressed="true">' +
+          '<span class="rec-icon">' + ico(h.icon) + '</span>' +
+          '<span class="rec-text"><span class="rec-name">' + esc(h.name) + '</span><span class="rec-meta">Added by you</span></span>' +
+          '<span class="rec-check">' + ico("check") + '</span>' +
+        '</div>';
+      }).join("");
+      body =
+        '<p class="eyebrow">Habits · 1 of 2</p>' +
+        '<h1>Start with a few</h1>' +
+        '<p class="ob-lead">Common habits to begin with. Pick what you want now — you can change everything later.</p>' +
+        '<div class="rec-list">' + habitCards + own + '</div>' +
+        '<button type="button" class="ob-link" data-action="new-habit">' + '+ Add your own habit</button>' +
+        '<button type="button" class="ob-link" data-action="habit-ideas" style="margin-top:2px">Browse habit ideas</button>' +
+        '<div class="ob-foot">' +
+          '<button type="button" class="btn-secondary" data-action="ob-back">Back</button>' +
+          '<button type="button" class="btn-primary" data-action="ob-next">Continue</button>' +
+        '</div>';
+    } else {
+      var routineCards = STARTER_ROUTINES.map(function (r) {
+        var on = !!ob.routines[r.key];
+        var names = r.habitKeys.map(function (k) {
+          var idea = STARTER_HABITS.filter(function (h) { return h.key === k; })[0];
+          return idea ? idea.name : k;
+        });
+        return '<button type="button" class="rec-card" data-action="ob-toggle" data-group="routines" data-key="' + r.key + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+          '<span class="rec-icon">' + ico("layers") + '</span>' +
+          '<span class="rec-text"><span class="rec-name">' + esc(r.name) + '</span><span class="rec-meta">' + esc(names.join(" · ")) + '</span></span>' +
+          '<span class="rec-check">' + ico("check") + '</span>' +
+        '</button>';
+      }).join("");
+      body =
+        '<p class="eyebrow">Routines · 2 of 2</p>' +
+        '<h1>Then a routine</h1>' +
+        '<p class="ob-lead">A routine is a set of habits you run together, one after another. Skip these to build your own later.</p>' +
+        '<div class="rec-list">' + routineCards + '</div>' +
+        '<div class="ob-foot">' +
+          '<button type="button" class="btn-secondary" data-action="ob-back">Back</button>' +
+          '<button type="button" class="btn-primary" data-action="ob-finish">Finish setup</button>' +
+        '</div>';
+    }
+
+    return '<div class="ob">' +
+      '<div class="ob-head"><span class="eyebrow" style="margin:0">Habit Tracker</span><span class="ob-dots" aria-hidden="true">' + dots + '</span></div>' +
+      '<div class="ob-step">' + body + '</div>' +
+    '</div>';
+  }
+
+  function finishOnboarding() {
+    var name = ob.name.replace(/\s+/g, " ").trim();
+    if (!name) { ob.step = 0; render(true); return; }
+    var created = {};
+    STARTER_HABITS.forEach(function (h) {
+      if (!ob.habits[h.key]) return;
+      var habit = {
+        id: "h-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6),
+        name: h.name,
+        kind: h.kind,
+        icon: h.icon,
+        target: h.target,
+        unit: h.unit,
+        checked: false,
+        count: 0,
+        seconds: 0
+      };
+      state.habits.push(habit);
+      created[h.key] = habit.id;
+    });
+    STARTER_ROUTINES.forEach(function (r) {
+      if (!ob.routines[r.key]) return;
+      var ids = r.habitKeys.map(function (k) { return created[k]; }).filter(Boolean);
+      if (!ids.length) return;
+      state.routines.push({
+        id: "r-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6),
+        name: r.name,
+        habitIds: ids
+      });
+    });
+    state.profile = { name: name, photo: ob.photo, onboarded: true };
+    persist();
+    obReset();
+    stack = [{ name: "today" }];
+    render(true);
+  }
+
+  /* ═══════════════ Habit page — new and edit ═══════════════ */
+  var HABIT_ICONS = ["check", "water", "walk", "book", "timer", "home", "person", "chart", "layers", "up"];
+
+  function defaultIcon(kind) {
+    return kind === "count" ? "water" : kind === "timer" ? "timer" : "check";
+  }
+
+  function blankHabit() {
+    return { editId: null, name: "", kind: "check", target: 1, icon: "check", unit: "" };
+  }
+
+  function habitFormHTML() {
+    var ui = pendingHabit;
+    var editing = !!ui.editId;
+    var kinds = [
+      { value: "check", name: "Check off", desc: "One tap when it's done", icon: "check" },
+      { value: "timer", name: "Timer", desc: "Track minutes spent", icon: "timer" },
+      { value: "count", name: "Count", desc: "Track units toward a target", icon: "water" }
+    ];
+    var options = kinds.map(function (k) {
+      return '<button type="button" class="kind-option" data-action="kind-select" data-kind="' + k.value + '" aria-pressed="' + (ui.kind === k.value ? "true" : "false") + '">' +
+        '<span class="kind-icon">' + ico(k.icon) + '</span>' +
+        '<span class="kind-text"><span class="kind-name">' + k.name + '</span><span class="kind-desc">' + k.desc + '</span></span>' +
+      '</button>';
+    }).join("");
+
+    var selectedIcon = ui.icon || defaultIcon(ui.kind);
+    var iconPicker = HABIT_ICONS.map(function (name) {
+      return '<button type="button" class="icon-opt" data-action="icon-select" data-icon-name="' + name + '" aria-pressed="' + (selectedIcon === name ? "true" : "false") + '" aria-label="' + name + ' icon">' + ico(name) + '</button>';
+    }).join("");
+
+    var targetSection = "";
+    if (ui.kind !== "check") {
+      var unit = ui.kind === "timer" ? "minutes" : (ui.unit.trim() || (ui.target === 1 ? "time" : "times"));
+      targetSection = '<div class="target-row">' +
+          '<span class="target-label"><span class="t">Daily target</span><span class="u">' + esc(unit) + ' per day</span></span>' +
+          '<span class="target-controls">' +
+            '<button type="button" class="mini-step" data-action="target-dec" aria-label="Lower target"' + (ui.target <= 1 ? " disabled" : "") + '>' + ico("minus") + '</button>' +
+            '<span class="target-value">' + ui.target + '</span>' +
+            '<button type="button" class="mini-step" data-action="target-inc" aria-label="Raise target"' + (ui.target >= 240 ? " disabled" : "") + '>' + ico("plus") + '</button>' +
+          '</span>' +
+        '</div>';
+      if (ui.kind === "count") {
+        targetSection += '<div class="field-block">' +
+          '<label class="field-label" for="habitUnitInput">Unit (optional)</label>' +
+          '<input class="field" id="habitUnitInput" type="text" maxlength="16" autocomplete="off" placeholder="glasses, bottles, litres" value="' + esc(ui.unit) + '" />' +
+          '<p class="field-hint">Whatever you count in — bottles, glasses, litres, pages.</p>' +
+        '</div>';
+      }
+    }
+
+    return '<div class="new-habit-body">' +
+        '<div class="field-block">' +
+          '<label class="field-label" for="habitNameInput">Name</label>' +
+          '<input class="field" id="habitNameInput" type="text" maxlength="60" autocomplete="off" placeholder="Drink water" value="' + esc(ui.name) + '" data-autofocus />' +
+          (editing ? "" : '<button type="button" class="ob-link" data-action="habit-ideas" data-return="habit">Browse habit ideas</button>') +
+        '</div>' +
+        '<h2 class="section-title" style="margin-top:26px">Icon</h2>' +
+        '<div class="icon-picker" role="group" aria-label="Habit icon">' + iconPicker + '</div>' +
+        '<h2 class="section-title" style="margin-top:26px">Track it as</h2>' +
+        '<div class="kind-options">' + options + '</div>' +
+        targetSection +
+        '<p class="modal-note new-habit-note">Reminders are stored as intent only — this build does not deliver notifications.</p>' +
+        (editing ? '<button type="button" class="danger-link" data-action="delete-habit-page">Delete habit</button>' : "") +
+      '</div>' +
+      '<div class="new-habit-foot">' +
+        '<button type="button" class="btn-primary btn-block" data-action="create-habit"' + (ui.name.trim() ? "" : " disabled") + '>' + (editing ? "Save changes" : "Create habit") + '</button>' +
+      '</div>';
+  }
+
+  function newHabitHTML() {
+    return '<div class="screen new-habit-screen">' +
+      '<div class="head-bar">' +
+        '<button type="button" class="back" data-action="back" aria-label="Back">' + ico("back") + '</button>' +
+        '<h1 class="head-title">' + (pendingHabit.editId ? "Edit habit" : "New habit") + '</h1>' +
+        '<span class="head-spacer" aria-hidden="true"></span>' +
+      '</div>' +
+      habitFormHTML() +
+    '</div>';
+  }
+
+  function refreshNewHabit(focusSel) {
+    if (currentScreen().name !== "habit-new") return;
+    var y = phoneContent.scrollTop;
+    app.innerHTML = newHabitHTML();
+    paintIcons(app);
+    phoneContent.scrollTop = y;
+    var focusEl = focusSel ? app.querySelector(focusSel) : null;
+    if (focusEl && !focusEl.disabled) focusEl.focus();
+  }
+
+  function openNewHabit(keep) {
+    if (!keep) pendingHabit = blankHabit();
+    if (currentScreen().name === "habit-new") { refreshNewHabit(); return; }
+    go("habit-new");
+    window.setTimeout(function () {
+      var input = app.querySelector("#habitNameInput");
+      if (input && !input.value) input.focus();
+    }, 80);
+  }
+
+  function openEditHabit(h) {
+    pendingHabit = {
+      editId: h.id,
+      name: h.name,
+      kind: h.kind,
+      target: h.target,
+      unit: h.unit && h.unit !== "times" ? h.unit : "",
+      icon: h.icon || defaultIcon(h.kind)
+    };
+    if (currentScreen().name === "habit-new") { refreshNewHabit(); return; }
+    go("habit-new");
+  }
+
+  function saveHabitEdits() {
+    var h = byId(pendingHabit.editId);
+    if (!h) { pendingHabit = blankHabit(); if (stack.length > 1) goBack(); return; }
+    var name = pendingHabit.name.replace(/\s+/g, " ").trim();
+    if (!name) return;
+    var kind = pendingHabit.kind;
+    var kindChanged = h.kind !== kind;
+    h.name = name;
+    h.kind = kind;
+    h.icon = pendingHabit.icon || defaultIcon(kind);
+    h.target = kind === "check" ? 1 : Math.max(1, Math.min(240, pendingHabit.target));
+    h.unit = kind === "count" ? (pendingHabit.unit.trim() || "times") : kind === "timer" ? "min" : "";
+    if (kindChanged) { h.count = 0; h.seconds = 0; h.checked = false; if (state.runningHabitId === h.id) { state.runningHabitId = null; state.timerStartedAt = null; state.timerBaseSeconds = 0; } }
+    if (h.count > h.target) h.count = h.target;
+    pendingHabit = blankHabit();
+    persist();
+    var prev = stack.length > 1 ? stack[stack.length - 2] : null;
+    var wasOnDetail = prev && (prev.name === "counter" || prev.name === "timer") && prev.id === h.id;
+    if (wasOnDetail && kindChanged) { switchTab("today"); return; }
+    if (stack.length > 1) goBack(); else render(true);
+  }
+
+  /* ═══════════════ Habit ideas ═══════════════ */
+  function ideaMeta(idea) {
+    if (idea.kind === "count") return "Count · " + idea.target + " " + idea.unit + " a day";
+    if (idea.kind === "timer") return "Timer · " + idea.target + " min a day";
+    return "Check off · once a day";
+  }
+
+  function ideasDialogBody() {
+    var groups = ["Health", "Movement", "Mind", "Home"];
+    var body = groups.map(function (group) {
+      var rows = HABIT_IDEAS.filter(function (idea) { return idea.group === group; }).map(function (idea) {
+        var added = state.habits.some(function (h) { return h.name.toLowerCase() === idea.name.toLowerCase(); });
+        return '<button type="button" class="rec-card" data-action="idea-add" data-key="' + idea.key + '" aria-pressed="' + (added ? "true" : "false") + '"' + (added ? " disabled" : "") + '>' +
+          '<span class="rec-icon">' + ico(idea.icon) + '</span>' +
+          '<span class="rec-text"><span class="rec-name">' + esc(idea.name) + '</span><span class="rec-meta">' + (added ? "Added" : esc(ideaMeta(idea))) + '</span></span>' +
+          '<span class="rec-check">' + ico("check") + '</span>' +
+        '</button>';
+      }).join("");
+      return '<p class="group-label" style="margin:16px 0 8px">' + group + '</p><div class="rec-list">' + rows + '</div>';
+    }).join("");
+    return '<div class="modal-body">' +
+        '<p class="sheet-desc" style="margin-bottom:0">Ready-made habits. Tap one to add it — you can rename it or change its target later.</p>' +
+        body +
+      '</div>' +
+      '<div class="dialog-actions"><button type="button" class="btn-primary" data-action="ideas-done">Done</button></div>';
+  }
+
+  function refreshIdeasDialog() {
+    if (!modalOpen) return;
+    overlaySlot.innerHTML = dialogShell("Habit ideas", ideasDialogBody());
+    paintIcons(overlaySlot);
+  }
+
+  function openIdeasDialog() {
+    openModal(dialogShell("Habit ideas", ideasDialogBody()), { kind: "dialog" });
+  }
+
+  function addIdeaHabit(key) {
+    var idea = HABIT_IDEAS.filter(function (i) { return i.key === key; })[0];
+    if (!idea) return;
+    var exists = state.habits.some(function (h) { return h.name.toLowerCase() === idea.name.toLowerCase(); });
+    if (exists) return;
+    state.habits.push({
+      id: "h-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6),
+      name: idea.name,
+      kind: idea.kind,
+      icon: idea.icon,
+      target: idea.target,
+      unit: idea.unit,
+      checked: false,
+      count: 0,
+      seconds: 0
+    });
+    persist();
+    if (currentScreen().name === "onboarding") render(true);
+    else render(false);
+    refreshIdeasDialog();
+  }
+
+  /* ═══════════════ Share ═══════════════ */
+  function shareModel() {
+    var week = weekDays(TODAY);
+    var elapsed = Math.min(7, diffDays(week[0], TODAY) + 1);
+    var total = state.habits.length;
+    var weekDone = 0;
+    var bars = week.map(function (d, i) {
+      var key = dateKey(d);
+      var dayDone = 0;
+      state.habits.forEach(function (h) { if (doneOn(key, h.id)) dayDone += 1; });
+      if (i < elapsed) weekDone += dayDone;
+      return {
+        letter: letterFor(d),
+        pct: i >= elapsed ? 0 : Math.round(dayDone / (total || 1) * 100),
+        today: key === TODAY_KEY
+      };
+    });
+    var weekPct = total ? Math.round(weekDone / (total * elapsed) * 100) : 0;
+    var prevStart = addDays(week[0], -7);
+    var prevDone = 0;
+    for (var p = 0; p < elapsed; p += 1) {
+      var pKey = dateKey(addDays(prevStart, p));
+      state.habits.forEach(function (h) { if (doneOn(pKey, h.id)) prevDone += 1; });
+    }
+    var prevPct = total ? Math.round(prevDone / (total * elapsed) * 100) : 0;
+    var best = 0;
+    state.habits.forEach(function (h) { best = Math.max(best, streakOf(h)); });
+    var streaks = state.habits.map(function (h) { return { name: h.name, days: streakOf(h) }; })
+      .filter(function (s) { return s.days > 0; })
+      .sort(function (a, b) { return b.days - a.days; })
+      .slice(0, 3);
+    var name = state.profile.name || "You";
+    return {
+      name: name,
+      initial: name.trim().charAt(0).toUpperCase(),
+      photo: state.profile.photo,
+      range: shortDate(week[0]) + " – " + shortDate(week[6]),
+      weekPct: weekPct,
+      trend: weekPct - prevPct,
+      todayDone: doneCount(),
+      todayTotal: total,
+      best: best,
+      habitCount: total,
+      routineCount: state.routines.length,
+      bars: bars,
+      streaks: streaks
+    };
+  }
+
+  function posterHTML(model) {
+    var trendText = (model.trend > 0 ? "+" : "") + model.trend + "%";
+    var trendCls = model.trend > 0 ? " is-up" : model.trend < 0 ? " is-down" : " is-flat";
+    var bars = model.bars.map(function (b) {
+      return '<span class="poster-bar-slot">' +
+        '<span class="poster-bar' + (b.today ? " is-today" : "") + '" style="height:' + Math.max(2, Math.round(b.pct / 100 * 26)) + 'px"></span>' +
+        '<span class="poster-letter' + (b.today ? " is-today" : "") + '">' + b.letter + '</span>' +
+      '</span>';
+    }).join("");
+    var streakRows = model.streaks.length
+      ? model.streaks.map(function (s) {
+          return '<li><span>' + esc(s.name) + '</span><span>' + s.days + 'd</span></li>';
+        }).join("")
+      : '<li class="is-empty">No streaks yet — a fresh start.</li>';
+    return '<div class="poster" role="img" aria-label="Stats preview: ' + model.weekPct + '% this week, ' + model.todayDone + ' of ' + model.todayTotal + ' habits today">' +
+        '<div class="poster-brand"><span class="poster-dot"></span><span class="poster-mark">Habit Tracker</span><span class="poster-range">' + esc(model.range) + '</span></div>' +
+        '<div class="poster-id">' +
+          avatarHTML(36, model.photo, model.name, "poster-avatar") +
+          '<span class="poster-name">' + esc(model.name) + '</span>' +
+          '<span class="poster-sub">This week</span>' +
+        '</div>' +
+        '<div class="poster-hero"><span class="poster-pct">' + model.weekPct + '<span>%</span></span><span class="poster-trend' + trendCls + '">' + trendText + '</span></div>' +
+        '<p class="poster-cap">of habits completed this week</p>' +
+        '<div class="poster-tiles">' +
+          '<span class="poster-tile"><span class="poster-k">Today</span><span class="poster-v">' + model.todayDone + '/' + model.todayTotal + '</span></span>' +
+          '<span class="poster-tile"><span class="poster-k">Best streak</span><span class="poster-v">' + model.best + '<small>d</small></span></span>' +
+          '<span class="poster-tile"><span class="poster-k">Habits</span><span class="poster-v">' + model.habitCount + '</span></span>' +
+          '<span class="poster-tile"><span class="poster-k">Routines</span><span class="poster-v">' + model.routineCount + '</span></span>' +
+        '</div>' +
+        '<div class="poster-bars">' + bars + '</div>' +
+        '<ul class="poster-list">' + streakRows + '</ul>' +
+        '<p class="poster-foot">Made on this device · nothing leaves it</p>' +
+      '</div>';
+  }
+
+  var sharePhotoImg = null;
+  var sharePhotoSrc = "";
+
+  function primeSharePhoto() {
+    sharePhotoImg = null;
+    sharePhotoSrc = state.profile.photo || "";
+    if (!sharePhotoSrc) return;
+    var src = sharePhotoSrc;
+    var img = new Image();
+    img.onload = function () { if (sharePhotoSrc === src) sharePhotoImg = img; };
+    img.src = src;
+  }
+
+  function openShareDialog() {
+    primeSharePhoto();
+    openModal(dialogShell("Share your stats",
+      '<div class="modal-body">' +
+        posterHTML(shareModel()) +
+        '<p class="modal-note">Sends a 1080 × 1350 PNG to any app on your phone.</p>' +
+      '</div>' +
+      '<div class="dialog-actions">' +
+        '<button type="button" class="btn-secondary" data-action="modal-close">Cancel</button>' +
+        '<button type="button" class="btn-primary" data-action="share-now">Share image</button>' +
+      '</div>'), { kind: "dialog" });
+  }
+
+  function canvasText(ctx, text, x, y, font, color, align) {
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textAlign = align || "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(text, x, y);
+  }
+
+  function canvasRoundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawSharePoster(model, photoImg) {
+    var canvas = document.createElement("canvas");
+    canvas.width = 1080;
+    canvas.height = 1350;
+    var ctx = canvas.getContext("2d");
+    var dark = rootEl.getAttribute("data-theme") === "dark";
+    var pal = dark
+      ? { bg: "#141413", surface: "#30302e", line: "#3d3d3a", text: "#faf9f5", muted: "#b0aea5", faint: "#a5a49c", accent: "#d97757", soft: "rgba(217,119,87,.18)" }
+      : { bg: "#f5f4ed", surface: "#faf9f5", line: "#e8e6dc", text: "#141413", muted: "#5e5d59", faint: "#87867f", accent: "#c96442", soft: "rgba(201,100,66,.12)" };
+    var serif = function (size) { return '500 ' + size + 'px Georgia, "Times New Roman", serif'; };
+    var sans = function (size, weight) { return (weight || 600) + ' ' + size + 'px -apple-system, "Segoe UI", Roboto, Arial, sans-serif'; };
+    var M = 72;
+    var right = 1008;
+
+    ctx.fillStyle = pal.bg;
+    ctx.fillRect(0, 0, 1080, 1350);
+
+    /* Brand strip */
+    ctx.beginPath();
+    ctx.arc(M + 7, 86, 7, 0, Math.PI * 2);
+    ctx.fillStyle = pal.accent;
+    ctx.fill();
+    canvasText(ctx, "HABIT TRACKER", M + 26, 94, sans(24), pal.text);
+    canvasText(ctx, model.range, right, 94, sans(24, 500), pal.muted, "right");
+    ctx.strokeStyle = pal.line;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(M, 124); ctx.lineTo(right, 124); ctx.stroke();
+
+    /* Identity */
+    var ax = M + 48, ay = 200;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(ax, ay, 48, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    if (photoImg) {
+      ctx.drawImage(photoImg, ax - 48, ay - 48, 96, 96);
+    } else {
+      ctx.fillStyle = pal.soft;
+      ctx.fillRect(ax - 48, ay - 48, 96, 96);
+      canvasText(ctx, model.initial, ax, ay + 18, serif(44), pal.accent, "center");
+    }
+    ctx.restore();
+    canvasText(ctx, model.name, M + 120, 208, serif(46), pal.text);
+    canvasText(ctx, "This week", M + 120, 246, sans(24, 500), pal.muted);
+
+    /* Hero */
+    var heroFont = serif(168);
+    ctx.font = heroFont;
+    var heroWidth = ctx.measureText(String(model.weekPct)).width;
+    canvasText(ctx, String(model.weekPct), M, 452, heroFont, pal.text);
+    canvasText(ctx, "%", M + heroWidth + 8, 452, serif(96), pal.muted);
+    var pillX = M + heroWidth + 96;
+    var trendText = (model.trend > 0 ? "+" : "") + model.trend + "%";
+    ctx.font = sans(26);
+    var pillW = ctx.measureText(trendText).width + 48;
+    canvasRoundRect(ctx, pillX, 396, pillW, 52, 26);
+    ctx.fillStyle = model.trend === 0 ? pal.line : pal.soft;
+    ctx.fill();
+    canvasText(ctx, trendText, pillX + pillW / 2, 430, sans(26), model.trend === 0 ? pal.muted : pal.accent, "center");
+    canvasText(ctx, "of habits completed this week", M, 506, sans(28, 500), pal.muted);
+
+    /* Stat tiles */
+    var tiles = [
+      { k: "TODAY", v: model.todayDone + "/" + model.todayTotal },
+      { k: "BEST STREAK", v: model.best + " d" },
+      { k: "HABITS", v: String(model.habitCount) },
+      { k: "ROUTINES", v: String(model.routineCount) }
+    ];
+    var tileW = 456, tileH = 136, gap = 24;
+    tiles.forEach(function (tile, i) {
+      var x = M + (i % 2) * (tileW + gap);
+      var y = 552 + Math.floor(i / 2) * (tileH + gap);
+      canvasRoundRect(ctx, x, y, tileW, tileH, 20);
+      ctx.fillStyle = pal.surface;
+      ctx.fill();
+      ctx.strokeStyle = pal.line;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      canvasText(ctx, tile.k, x + 24, y + 40, sans(20), pal.muted);
+      canvasText(ctx, tile.v, x + 24, y + 106, serif(52), pal.text);
+    });
+
+    /* Seven day chart */
+    var barW = 76, barGap = 56, barMax = 130;
+    var startX = (1080 - (barW * 7 + barGap * 6)) / 2;
+    var baseline = 1060;
+    model.bars.forEach(function (b, i) {
+      var x = startX + i * (barW + barGap);
+      ctx.fillStyle = pal.line;
+      canvasRoundRect(ctx, x, baseline - barMax, barW, barMax, 12);
+      ctx.fill();
+      var h = Math.max(6, Math.round(b.pct / 100 * barMax));
+      ctx.fillStyle = b.today ? pal.accent : pal.muted;
+      ctx.globalAlpha = b.today ? 1 : 0.42;
+      canvasRoundRect(ctx, x, baseline - h, barW, h, 12);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      canvasText(ctx, b.pct + "%", x + barW / 2, baseline - h - 16, sans(22, 500), b.today ? pal.accent : pal.muted, "center");
+      canvasText(ctx, b.letter, x + barW / 2, baseline + 38, sans(24), b.today ? pal.text : pal.muted, "center");
+    });
+
+    /* Streaks */
+    if (model.streaks.length) {
+      model.streaks.forEach(function (s, i) {
+        var y = 1166 + i * 44;
+        canvasText(ctx, s.name, M, y, sans(26, 500), pal.text);
+        canvasText(ctx, s.days + (s.days === 1 ? " day" : " days"), right, y, sans(26, 600), pal.accent, "right");
+        ctx.strokeStyle = pal.line;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(M, y + 18); ctx.lineTo(right, y + 18); ctx.stroke();
+      });
+    } else {
+      canvasText(ctx, "No streaks yet — a fresh start.", M, 1190, sans(26, 500), pal.muted);
+    }
+
+    /* Footer */
+    ctx.strokeStyle = pal.line;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(M, 1282); ctx.lineTo(right, 1282); ctx.stroke();
+    canvasText(ctx, "Made on this device · nothing leaves it", M, 1322, sans(22, 500), pal.faint);
+    canvasText(ctx, "HABIT TRACKER", right, 1322, sans(22, 600), pal.faint, "right");
+
+    return canvas;
+  }
+
+  function sharePoster() {
+    var model = shareModel();
+    if (!model.photo) { withPhoto(null); return; }
+    if (sharePhotoImg && sharePhotoSrc === model.photo) { withPhoto(sharePhotoImg); return; }
+    var img = new Image();
+    img.onload = function () { withPhoto(img); };
+    img.onerror = function () { withPhoto(null); };
+    img.src = model.photo;
+    function withPhoto(photoImg) {
+      try {
+        drawSharePoster(model, photoImg).toBlob(function (blob) {
+          if (!blob) return;
+          var file = new File([blob], "habit-stats.png", { type: "image/png" });
+          if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+            navigator.share({ files: [file], title: "My habits", text: shareText() }).catch(function () { /* dismissed */ });
+            return;
+          }
+          var url = URL.createObjectURL(blob);
+          var link = document.createElement("a");
+          link.href = url;
+          link.download = "habit-stats.png";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+        }, "image/png");
+      } catch (err) { /* ignore */ }
+    }
+    if (!model.photo) { withPhoto(null); return; }
+    var img = new Image();
+    img.onload = function () { withPhoto(img); };
+    img.onerror = function () { withPhoto(null); };
+    img.src = model.photo;
+  }
+
+  function shareText() {
+    var model = shareModel();
+    return model.name + " on Habit Tracker — " + model.todayDone + " of " + model.todayTotal + " habits today, " + model.weekPct + "% this week, best streak " + model.best + (model.best === 1 ? " day." : " days.");
+  }
+
+  var pendingHabit = { editId: null, name: "", kind: "check", target: 1, icon: "check", unit: "" };
+
+  function profileHTML() {
+    var name = state.profile.name || "You";
+    return '<div class="top">' +
+        '<div><p class="eyebrow">Local profile</p><h1 class="title">Profile</h1></div>' +
+      '</div>' +
+      '<div class="screen">' +
+      '<div class="card profile-id">' +
+        avatarHTML(52, state.profile.photo, name, "profile-disc") +
+        '<span class="profile-text">' +
+          '<span class="profile-name">' + esc(name) + '</span>' +
+          '<span class="profile-sub">Local profile · nothing syncs, nothing leaves.</span>' +
+        '</span>' +
+      '</div>' +
+      '<button type="button" class="btn-secondary btn-block profile-share" data-action="share-stats">Share stats</button>' +
+      '<p class="group-label">Appearance</p>' +
+      '<button type="button" class="setting-row" data-action="cycle-theme"><span class="setting-label">Appearance</span><span class="setting-value">' + themeLabel() + '</span>' + ico("chevron") + '</button>' +
+      '<p class="group-label">Reminders</p>' +
+      '<div class="setting-row">' +
+        '<span class="setting-label" id="remLabel">Reminders</span>' +
+        '<button type="button" class="switch" role="switch" aria-checked="' + (state.remindersOn ? "true" : "false") + '" aria-labelledby="remLabel" data-action="toggle-reminders"></button>' +
+      '</div>' +
+      '<button type="button" class="setting-row" data-action="reminder-time"><span class="setting-label">Reminder time</span><span class="setting-value">' + fmtTime(state.reminderHour, state.reminderMinute) + '</span>' + ico("chevron") + '</button>' +
+      '<button type="button" class="setting-row" data-action="week-start"><span class="setting-label">Start week on</span><span class="setting-value">' + (state.weekStartsMonday ? "Monday" : "Sunday") + '</span>' + ico("chevron") + '</button>' +
+      '<p class="group-label">Data</p>' +
+      '<button type="button" class="setting-row" data-action="data-sheet"><span class="setting-label">Data &amp; export</span>' + ico("chevron") + '</button>' +
+      '<p class="group-label">About</p>' +
+      '<button type="button" class="setting-row" data-action="about"><span class="setting-label">About</span><span class="setting-value">v1.0</span>' + ico("chevron") + '</button>' +
+      '<button type="button" class="setting-row" data-action="edit-profile"><span class="setting-label">Edit name &amp; photo</span>' + ico("chevron") + '</button>' +
+    '</div>';
+  }
+
+  /* ═══════════════ Modal plumbing ═══════════════ */
+  var modalOpen = false;
+  var modalCtx = null;
+  var lastTrigger = null;
+  var closeTimer = null;
+  var activeAnchor = null;
+
+  function positionPopup() {
+    var panel = overlaySlot.querySelector(".popup-panel");
+    if (!panel || !activeAnchor || !document.body.contains(activeAnchor)) return;
+    var box = overlay.getBoundingClientRect();
+    var r = activeAnchor.getBoundingClientRect();
+    var pad = 8;
+    var topSafe = 54;
+    var bottomLimit = pill.hidden ? 24 : 96;
+    var pw = panel.offsetWidth;
+    var ph = panel.offsetHeight;
+    var left = r.right - box.left - pw;
+    left = Math.max(pad, Math.min(left, box.width - pw - pad));
+    var below = r.bottom - box.top + 6;
+    var above = r.top - box.top - ph - 6;
+    var flipped = false;
+    if (below + ph > box.height - bottomLimit && above > topSafe) { flipped = true; }
+    var top = flipped ? above : below;
+    top = Math.max(topSafe, Math.min(top, box.height - ph - bottomLimit));
+    panel.style.left = Math.round(left) + "px";
+    panel.style.top = Math.round(top) + "px";
+    panel.style.transformOrigin = (flipped ? "bottom" : "top") + " right";
+  }
+
+  function popupMenu(items, anchor) {
+    var html = '<div class="popup-panel" role="menu" aria-label="Options">' +
+      items.map(function (item) {
+        return '<button type="button" class="popup-item' + (item.danger ? " is-danger" : "") + '" role="menuitem"' +
+          (item.id ? ' data-id="' + item.id + '"' : "") +
+          ' data-action="' + item.action + '">' +
+          ico(item.icon) + '<span>' + esc(item.label) + '</span></button>';
+      }).join("") +
+    '</div>';
+    openModal(html, { kind: "popup", anchor: anchor, trigger: anchor });
+  }
+
+  function openModal(html, opts) {
+    opts = opts || {};
+    if (closeTimer) { window.clearTimeout(closeTimer); closeTimer = null; }
+    overlaySlot.innerHTML = html;
+    paintIcons(overlaySlot);
+    overlay.hidden = false;
+    overlay.classList.remove("is-dialog", "is-popup");
+    overlay.classList.add(opts.kind === "popup" ? "is-popup" : "is-dialog");
+    modalOpen = true;
+    modalCtx = opts.ctx || null;
+    lastTrigger = opts.trigger || document.activeElement;
+    activeAnchor = opts.kind === "popup" ? (opts.anchor || lastTrigger) : null;
+    if (activeAnchor) positionPopup();
+    void overlay.offsetWidth;
+    overlay.classList.add("is-open");
+    pushHistory();
+    phoneContent.inert = true;
+    pill.inert = true;
+    document.addEventListener("keydown", modalKeys, true);
+    window.requestAnimationFrame(function () {
+      if (activeAnchor) positionPopup();
+      var focusEl = overlaySlot.querySelector("[data-autofocus], input, .popup-item, button");
+      if (focusEl) focusEl.focus();
+    });
+  }
+
+  function closeModal(after, fromPop) {
+    if (!modalOpen) return;
+    modalOpen = false;
+    activeAnchor = null;
+    overlay.classList.remove("is-open");
+    if (!fromPop) dropHistory();
+    phoneContent.inert = false;
+    pill.inert = false;
+    document.removeEventListener("keydown", modalKeys, true);
+    var trigger = lastTrigger;
+    var finish = function () {
+      overlay.hidden = true;
+      overlaySlot.innerHTML = "";
+      if (typeof after === "function") after();
+      else if (trigger && document.body.contains(trigger)) trigger.focus();
+    };
+    if (reduceMotion.matches) finish();
+    else closeTimer = window.setTimeout(finish, 170);
+  }
+
+  function modalKeys(e) {
+    if (!modalOpen) return;
+    if (e.key === "Escape") { e.preventDefault(); closeModal(); return; }
+    if (overlay.classList.contains("is-popup") && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      var items = Array.prototype.slice.call(overlaySlot.querySelectorAll(".popup-item"));
+      if (!items.length) return;
+      var at = items.indexOf(document.activeElement);
+      var step = e.key === "ArrowDown" ? 1 : -1;
+      var nextIdx = at < 0 ? (step > 0 ? 0 : items.length - 1) : (at + step + items.length) % items.length;
+      items[nextIdx].focus();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    var nodes = overlaySlot.querySelectorAll("button, input, [href]");
+    var focusables = Array.prototype.filter.call(nodes, function (el) {
+      return !el.disabled && el.offsetParent !== null;
+    });
+    if (!focusables.length) return;
+    var first = focusables[0];
+    var last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  function dialogShell(title, bodyHTML) {
+    return '<div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">' +
+      '<h2 id="dlgTitle">' + esc(title) + '</h2>' +
+      bodyHTML +
+    '</div>';
+  }
+
+  function dialog(title, bodyHTML, actionsHTML) {
+    return dialogShell(title,
+      '<p>' + bodyHTML + '</p>' +
+      '<div class="dialog-actions">' + actionsHTML + '</div>');
+  }
+
+  function confirmDialog(title, body, confirmLabel, onYes, tone, trigger) {
+    var toneClass = tone === "primary" ? "btn-primary" : "btn-danger";
+    openModal(dialog(title, body,
+      '<button type="button" class="btn-secondary" data-action="modal-close">Cancel</button>' +
+      '<button type="button" class="' + toneClass + '" data-action="modal-confirm">' + esc(confirmLabel) + '</button>'), {
+      kind: "dialog",
+      ctx: { onYes: onYes },
+      trigger: trigger
+    });
+  }
+
+  function infoDialog(title, body) {
+    openModal(dialog(title, body,
+      '<button type="button" class="btn-secondary" data-action="modal-close">Close</button>'), { kind: "dialog" });
+  }
+
+  function choiceDialog(title, options, selected, onPick) {
+    var rows = options.map(function (opt, i) {
+      return '<button type="button" class="choice" data-action="modal-choice" data-index="' + i + '" aria-pressed="' + (opt === selected ? "true" : "false") + '">' +
+        '<span>' + esc(opt) + '</span>' + (opt === selected ? ico("check") : "") +
+      '</button>';
+    }).join("");
+    openModal(dialogShell(title,
+      '<div class="modal-body"><div class="choice-list">' + rows + '</div></div>' +
+      '<div class="dialog-actions"><button type="button" class="btn-secondary" data-action="modal-close">Cancel</button></div>'), {
+      kind: "dialog",
+      ctx: { options: options, onPick: onPick }
+    });
+  }
+
+  function nameDialog(title, desc, value, buttonLabel, onSave, opts) {
+    opts = opts || {};
+    openModal(dialogShell(title,
+      '<div class="modal-body">' +
+        '<p class="sheet-desc">' + esc(desc) + '</p>' +
+        '<label class="field-label" for="nameSheetInput">Name</label>' +
+        '<input class="field" id="nameSheetInput" type="text" maxlength="60" autocomplete="off" value="' + esc(value) + '" style="margin-top:6px" data-autofocus />' +
+        (opts.hint ? '<p class="modal-note">' + esc(opts.hint) + '</p>' : "") +
+      '</div>' +
+      '<div class="dialog-actions">' +
+        '<button type="button" class="btn-secondary" data-action="modal-close">Cancel</button>' +
+        '<button type="button" class="btn-primary" data-action="modal-save" id="nameSave">' + esc(buttonLabel) + '</button>' +
+      '</div>'), {
+      kind: "dialog",
+      ctx: { onSave: onSave }
+    });
+    var input = overlaySlot.querySelector("#nameSheetInput");
+    var saveBtn = overlaySlot.querySelector("#nameSave");
+    var sync = function () { saveBtn.disabled = input.value.trim() === ""; };
+    input.addEventListener("input", sync);
+    sync();
+  }
+
+  function timeDialog() {
+    openModal(dialogShell("Reminder time",
+      '<div class="modal-body">' +
+        '<p class="sheet-desc">Every day</p>' +
+        '<div class="time-picker">' +
+          '<div class="time-unit">' +
+            '<button type="button" class="mini-step" data-action="time-step" data-unit="hour" data-delta="1" aria-label="Hour up">' + ico("plus") + '</button>' +
+            '<span class="time-num" data-time-hour>' + String(state.reminderHour).padStart(2, "0") + '</span>' +
+            '<button type="button" class="mini-step" data-action="time-step" data-unit="hour" data-delta="-1" aria-label="Hour down">' + ico("minus") + '</button>' +
+            '<span class="time-lbl">Hour</span>' +
+          '</div>' +
+          '<div class="time-unit">' +
+            '<button type="button" class="mini-step" data-action="time-step" data-unit="minute" data-delta="5" aria-label="Minutes up">' + ico("plus") + '</button>' +
+            '<span class="time-num" data-time-minute>' + String(state.reminderMinute).padStart(2, "0") + '</span>' +
+            '<button type="button" class="mini-step" data-action="time-step" data-unit="minute" data-delta="-5" aria-label="Minutes down">' + ico("minus") + '</button>' +
+            '<span class="time-lbl">Minute</span>' +
+          '</div>' +
+        '</div>' +
+        '<p class="modal-note">Stored and shown, but no notification is delivered.</p>' +
+      '</div>' +
+      '<div class="dialog-actions">' +
+        '<button type="button" class="btn-secondary" data-action="modal-close">Cancel</button>' +
+        '<button type="button" class="btn-primary" data-action="time-save">Save</button>' +
+      '</div>'), {
+      kind: "dialog",
+      ctx: { hour: state.reminderHour, minute: state.reminderMinute }
+    });
+  }
+
+  function dataDialog() {
+    openModal(dialogShell("Data & export",
+      '<div class="modal-body">' +
+        '<p class="sheet-desc">Everything lives on this device. Choose how much to clear.</p>' +
+        '<div class="choice-list">' +
+          '<button type="button" class="choice" data-action="clear-all">Clear habits &amp; history</button>' +
+          '<button type="button" class="choice is-danger" data-action="reset-app">Reset app &amp; profile</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="dialog-actions"><button type="button" class="btn-secondary" data-action="modal-close">Cancel</button></div>'), { kind: "dialog" });
+  }
+
+  function editProfileDialog() {
+    openModal(dialogShell("Edit profile",
+      '<div class="modal-body">' +
+        '<div class="photo-well">' +
+          avatarHTML(64, state.profile.photo, state.profile.name, "photo-disc") +
+          '<div class="photo-actions">' +
+            '<button type="button" class="photo-btn" data-action="pick-photo" data-target="profile">' + (state.profile.photo ? "Change photo" : "Add a photo") + '</button>' +
+            (state.profile.photo ? '<button type="button" class="photo-btn photo-remove" data-action="remove-photo" data-target="profile">Remove photo</button>' : "") +
+          '</div>' +
+        '</div>' +
+        '<label class="field-label" for="profileNameInput">Your name</label>' +
+        '<input class="field" id="profileNameInput" type="text" maxlength="40" autocomplete="given-name" value="' + esc(state.profile.name) + '" style="margin-top:6px" data-autofocus />' +
+      '</div>' +
+      '<div class="dialog-actions">' +
+        '<button type="button" class="btn-secondary" data-action="modal-close">Cancel</button>' +
+        '<button type="button" class="btn-primary" data-action="profile-save">Save</button>' +
+      '</div>'), { kind: "dialog" });
+  }
+
+  /* ═══════════════ Timer ticking ═══════════════ */
+  var ticker = null;
+  var tickCount = 0;
+
+  function startTickerIfNeeded() {
+    if (state.runningHabitId && !ticker) {
+      ticker = window.setInterval(onTick, 1000);
+    } else if (!state.runningHabitId && ticker) {
+      window.clearInterval(ticker);
+      ticker = null;
+    }
+  }
+
+  function onTick() {
+    if (!state.runningHabitId) { startTickerIfNeeded(); return; }
+    var h = byId(state.runningHabitId);
+    if (!h) { state.runningHabitId = null; state.timerStartedAt = null; startTickerIfNeeded(); return; }
+    var secs = liveSeconds(h);
+    tickCount += 1;
+
+    if (currentScreen().name === "timer" && currentScreen().id === h.id) {
+      var clock = document.getElementById("timerClock");
+      var arc = document.getElementById("timerArc");
+      var logged = document.getElementById("timerLogged");
+      var ring = document.getElementById("timerRing");
+      if (clock) clock.textContent = fmtClock(secs);
+      if (logged) logged.textContent = fmtHM(secs) + " logged";
+      if (arc) {
+        var r = 46, c = 2 * Math.PI * r;
+        var p = Math.min(1, secs / (h.target * 60));
+        arc.setAttribute("stroke-dashoffset", (c * (1 - p)).toFixed(1));
+      }
+      if (ring) ring.setAttribute("aria-label", "Elapsed " + fmtHM(secs) + " of " + fmtMinutes(h.target));
+    }
+
+    if (tickCount % 10 === 0) {
+      h.seconds = Math.min(86400, Math.floor(secs));
+      persist();
+    }
+  }
+
+  /* ═══════════════ Actions ═══════════════ */
+  function toggleTimer(h) {
+    if (isRunning(h)) {
+      h.seconds = Math.min(86400, Math.floor(liveSeconds(h)));
+      state.runningHabitId = null;
+      state.timerStartedAt = null;
+      state.timerBaseSeconds = 0;
+    } else {
+      if (state.runningHabitId) {
+        var prev = byId(state.runningHabitId);
+        if (prev) prev.seconds = Math.min(86400, Math.floor(liveSeconds(prev)));
+      }
+      state.runningHabitId = h.id;
+      state.timerBaseSeconds = h.seconds;
+      state.timerStartedAt = Date.now();
+    }
+    persist();
+    startTickerIfNeeded();
+    render(true);
+  }
+
+  function setCount(h, next) {
+    h.count = Math.max(0, Math.min(h.target, next));
+    persist();
+    render(true);
+  }
+
+  function addSeconds(h, delta) {
+    var base = isRunning(h) ? liveSeconds(h) : h.seconds;
+    var next = Math.max(0, Math.min(86400, base + delta));
+    if (isRunning(h)) {
+      state.timerBaseSeconds = next;
+      state.timerStartedAt = Date.now();
+    }
+    h.seconds = Math.floor(next);
+    persist();
+    render(true);
+  }
+
+  function createHabit() {
+    if (pendingHabit.editId) { saveHabitEdits(); return; }
+    var name = pendingHabit.name.replace(/\s+/g, " ").trim();
+    if (!name) return;
+    var kind = pendingHabit.kind;
+    var habit = {
+      id: "h-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+      name: name,
+      kind: kind,
+      icon: pendingHabit.icon || defaultIcon(kind),
+      target: kind === "check" ? 1 : pendingHabit.target,
+      unit: kind === "count" ? (pendingHabit.unit.trim() || "times") : kind === "timer" ? "min" : "",
+      checked: false,
+      count: 0,
+      seconds: 0
+    };
+    state.habits.push(habit);
+    pendingHabit = blankHabit();
+    persist();
+    if (modalOpen) closeModal();
+    if (stack.length > 1) goBack();
+    else render(true);
+  }
+
+  /* ═══════════════ Routine dialog ═══════════════ */
+  var pendingRoutine = { id: null, name: "", habitIds: [] };
+
+  function routineDialogBody() {
+    var habits = state.habits;
+    var rows = habits.map(function (h) {
+      var on = pendingRoutine.habitIds.indexOf(h.id) !== -1;
+      return '<button type="button" class="rec-card" data-action="routine-pick" data-id="' + h.id + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+        '<span class="rec-icon">' + ico(h.icon) + '</span>' +
+        '<span class="rec-text"><span class="rec-name">' + esc(h.name) + '</span><span class="rec-meta">' + esc(habitTypeLine(h)) + '</span></span>' +
+        '<span class="rec-check">' + ico("check") + '</span>' +
+      '</button>';
+    }).join("");
+    var canSave = pendingRoutine.name.trim() !== "" && pendingRoutine.habitIds.length > 0;
+    return '<div class="modal-body">' +
+        '<label class="field-label" for="routineNameInput">Name</label>' +
+        '<input class="field" id="routineNameInput" type="text" maxlength="60" autocomplete="off" placeholder="Morning" value="' + esc(pendingRoutine.name) + '" style="margin-top:6px" data-autofocus />' +
+        '<h2 class="section-title" style="margin:20px 0 2px">Habits in this routine</h2>' +
+        '<p class="modal-note" style="margin-bottom:10px">Pick them in the order you want to run them.</p>' +
+        (habits.length
+          ? '<div class="rec-list">' + rows + '</div>'
+          : '<p class="modal-note">No habits yet. Create a habit first — a routine is made of habits.</p>') +
+      '</div>' +
+      '<div class="dialog-actions">' +
+        '<button type="button" class="btn-secondary" data-action="modal-close">Cancel</button>' +
+        '<button type="button" class="btn-primary" data-action="routine-save"' + (canSave ? "" : " disabled") + '>' + (pendingRoutine.id ? "Save routine" : "Create routine") + '</button>' +
+      '</div>';
+  }
+
+  function refreshRoutineDialog() {
+    if (!modalOpen) return;
+    overlaySlot.innerHTML = dialogShell(pendingRoutine.id ? "Edit routine" : "New routine", routineDialogBody());
+    paintIcons(overlaySlot);
+  }
+
+  function openRoutineDialog(r) {
+    pendingRoutine = r
+      ? { id: r.id, name: r.name, habitIds: r.habitIds.slice() }
+      : { id: null, name: "", habitIds: [] };
+    openModal(dialogShell(pendingRoutine.id ? "Edit routine" : "New routine", routineDialogBody()), { kind: "dialog" });
+  }
+
+  function focusControl(action, index) {
+    var btns = app.querySelectorAll('[data-action="' + action + '"]');
+    if (!btns.length) return;
+    var target = btns[Math.max(0, Math.min(index, btns.length - 1))];
+    if (target) target.focus();
+  }
+
+  function deleteHabit(h) {
+    var index = state.habits.indexOf(h);
+    state.habits = state.habits.filter(function (x) { return x.id !== h.id; });
+    Object.keys(state.history).forEach(function (key) {
+      var ids = state.history[key];
+      if (!Array.isArray(ids)) return;
+      var kept = ids.filter(function (hid) { return hid !== h.id; });
+      if (kept.length) state.history[key] = kept;
+      else delete state.history[key];
+    });
+    if (state.runningHabitId === h.id) {
+      state.runningHabitId = null;
+      state.timerStartedAt = null;
+      state.timerBaseSeconds = 0;
+      startTickerIfNeeded();
+    }
+    var screen = currentScreen();
+    var onItsScreen = (screen.name === "counter" || screen.name === "timer") && screen.id === h.id;
+    state.routines.forEach(function (r) {
+      r.habitIds = r.habitIds.filter(function (id) { return id !== h.id; });
+    });
+    persist();
+    if (onItsScreen) {
+      stack = [{ name: "today" }];
+      render(true);
+      var tab = pill.querySelector('[data-tab="today"]');
+      if (tab) tab.focus();
+      return;
+    }
+    render(false);
+    if (state.habits.length) focusControl("habit-menu", index > state.habits.length - 1 ? state.habits.length - 1 : index);
+    else {
+      var add = app.querySelector('[data-action="new-habit"]');
+      if (add) add.focus();
+    }
+  }
+
+  function deleteRoutine(r) {
+    var index = state.routines.indexOf(r);
+    state.routines = state.routines.filter(function (x) { return x.id !== r.id; });
+    var screen = currentScreen();
+    var onItsScreen = screen.name === "routine-run" && screen.id === r.id;
+    persist();
+    if (onItsScreen) {
+      stack = [{ name: "routines" }];
+      render(true);
+      var tab = pill.querySelector('[data-tab="routines"]');
+      if (tab) tab.focus();
+      return;
+    }
+    render(false);
+    if (state.routines.length) focusControl("routine-menu", index > state.routines.length - 1 ? state.routines.length - 1 : index);
+    else {
+      var add = app.querySelector('[data-action="new-routine"]');
+      if (add) add.focus();
+    }
+  }
+
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest ? e.target.closest("[data-action]") : null;
+    if (!el) return;
+    var action = el.dataset.action;
+    var id = el.dataset.id;
+
+    rollover();
+
+    switch (action) {
+      case "tab":
+        rememberScroll();
+        switchTab(el.dataset.tab);
+        break;
+      case "back":
+        rememberScroll();
+        goBack();
+        break;
+      case "settings":
+        switchTab("profile");
+        break;
+      case "new-habit":
+        openNewHabit();
+        break;
+      case "habit-ideas":
+        openIdeasDialog();
+        break;
+      case "idea-add":
+        addIdeaHabit(el.dataset.key);
+        break;
+      case "ideas-done":
+        closeModal();
+        break;
+      case "toggle-check": {
+        var h = byId(id);
+        if (!h) break;
+        h.checked = !h.checked;
+        persist();
+        render(false);
+        break;
+      }
+      case "count-inc":
+      case "count-dec": {
+        var hc = byId(id);
+        if (!hc) break;
+        setCount(hc, hc.count + (action === "count-inc" ? 1 : -1));
+        break;
+      }
+      case "open-counter":
+        go("counter", { id: id });
+        break;
+      case "open-timer":
+        go("timer", { id: id });
+        break;
+      case "counter-inc":
+      case "counter-dec": {
+        var hd = byId(id);
+        if (!hd) break;
+        setCount(hd, hd.count + (action === "counter-inc" ? 1 : -1));
+        break;
+      }
+      case "habit-menu": {
+        var hm = byId(id);
+        if (!hm) break;
+        var hmAnchor = app.querySelector('[data-action="habit-menu"][data-id="' + hm.id + '"]');
+        popupMenu([
+          { label: "Edit habit", action: "rename-habit", id: hm.id, icon: "pencil" },
+          { label: "Delete habit", action: "delete-habit", id: hm.id, icon: "trash", danger: true }
+        ], hmAnchor);
+        break;
+      }
+      case "delete-habit": {
+        var hx = byId(id);
+        if (!hx) break;
+        var hxOpener = app.querySelector('[data-action="habit-menu"][data-id="' + hx.id + '"]');
+        closeModal(function () {
+          confirmDialog("Delete " + hx.name + "?",
+            "The habit and every day it was recorded are removed from this device. Streaks and Insights recalculate. This cannot be undone.",
+            "Delete habit", function () { deleteHabit(hx); }, "danger", hxOpener);
+        });
+        break;
+      }
+      case "routine-menu": {
+        var rm = routineById(id);
+        if (!rm) break;
+        var rmAnchor = app.querySelector('[data-action="routine-menu"][data-id="' + rm.id + '"]');
+        popupMenu([
+          { label: "Open routine", action: "open-routine", id: rm.id, icon: "layers" },
+          { label: "Edit habits", action: "edit-routine", id: rm.id, icon: "pencil" },
+          { label: "Delete routine", action: "delete-routine", id: rm.id, icon: "trash", danger: true }
+        ], rmAnchor);
+        break;
+      }
+      case "delete-routine": {
+        var rx = routineById(id);
+        if (!rx) break;
+        var rxOpener = app.querySelector('[data-action="routine-menu"][data-id="' + rx.id + '"]');
+        closeModal(function () {
+          confirmDialog("Delete " + rx.name + "?",
+            "The routine, its steps and today's progress are removed from this device. This cannot be undone.",
+            "Delete routine", function () { deleteRoutine(rx); }, "danger", rxOpener);
+        });
+        break;
+      }
+      case "rename-habit": {
+        var hr = byId(id);
+        if (!hr) break;
+        if (modalOpen) closeModal(function () { openEditHabit(hr); });
+        else openEditHabit(hr);
+        break;
+      }
+      case "delete-habit-page": {
+        var hp = byId(pendingHabit.editId);
+        if (!hp) break;
+        confirmDialog("Delete " + hp.name + "?",
+          "The habit and every day it was recorded are removed from this device. Streaks and Insights recalculate. This cannot be undone.",
+          "Delete habit", function () {
+            deleteHabit(hp);
+            pendingHabit = blankHabit();
+            if (currentScreen().name === "habit-new") goBack();
+          }, "danger");
+        break;
+      }
+      case "timer-toggle": {
+        var ht = byId(id);
+        if (ht) toggleTimer(ht);
+        break;
+      }
+      case "timer-end": {
+        var he = byId(id);
+        if (he && isRunning(he)) toggleTimer(he);
+        else if (he) { he.seconds = Math.min(86400, Math.floor(he.seconds)); persist(); }
+        goBack();
+        break;
+      }
+      case "timer-add30": {
+        var ha = byId(id);
+        if (ha) addSeconds(ha, 1800);
+        break;
+      }
+      case "open-routine":
+        if (modalOpen) closeModal(function () { go("routine-run", { id: id }); });
+        else go("routine-run", { id: id });
+        break;
+      case "routine-habit-toggle": {
+        var rh = byId(id);
+        if (!rh) break;
+        setHabitDone(rh, !isDone(rh));
+        persist();
+        render(false);
+        break;
+      }
+      case "routine-reset": {
+        var rr = routineById(id);
+        if (!rr) break;
+        confirmDialog("Reset this routine?",
+          "Today's habits in " + esc(rr.name) + " will be marked not done. This cannot be undone.",
+          "Reset", function () {
+            routineHabits(rr).forEach(function (h) { setHabitDone(h, false); });
+            persist();
+            render(false);
+          });
+        break;
+      }
+      case "new-routine":
+        openRoutineDialog(null);
+        break;
+      case "edit-routine": {
+        var re = routineById(id);
+        if (!re) break;
+        if (modalOpen) closeModal(function () { openRoutineDialog(re); });
+        else openRoutineDialog(re);
+        break;
+      }
+      case "routine-pick": {
+        var pickInput = overlaySlot.querySelector("#routineNameInput");
+        if (pickInput) pendingRoutine.name = pickInput.value;
+        var hId = el.dataset.id;
+        var at = pendingRoutine.habitIds.indexOf(hId);
+        if (at === -1) pendingRoutine.habitIds.push(hId);
+        else pendingRoutine.habitIds.splice(at, 1);
+        refreshRoutineDialog();
+        var pickBtn = overlaySlot.querySelector('[data-action="routine-pick"][data-id="' + hId + '"]');
+        if (pickBtn) pickBtn.focus();
+        break;
+      }
+      case "routine-save": {
+        var routineNameInput = overlaySlot.querySelector("#routineNameInput");
+        var routineName = routineNameInput ? routineNameInput.value.replace(/\s+/g, " ").trim() : "";
+        if (routineName) pendingRoutine.name = routineName;
+        if (!pendingRoutine.name.trim() || !pendingRoutine.habitIds.length) {
+          if (routineNameInput && !routineNameInput.value.trim()) routineNameInput.focus();
+          break;
+        }
+        if (pendingRoutine.id) {
+          var existing = routineById(pendingRoutine.id);
+          if (existing) {
+            existing.name = pendingRoutine.name.trim();
+            existing.habitIds = pendingRoutine.habitIds.slice();
+          }
+        } else {
+          state.routines.push({
+            id: "r-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6),
+            name: pendingRoutine.name.trim(),
+            habitIds: pendingRoutine.habitIds.slice()
+          });
+        }
+        persist();
+        closeModal(function () { render(false); });
+        break;
+      }
+      case "kind-select": {
+        var kind = el.dataset.kind;
+        var kindInput = app.querySelector("#habitNameInput");
+        if (kindInput) pendingHabit.name = kindInput.value;
+        var autoIcon = !pendingHabit.icon || pendingHabit.icon === defaultIcon(pendingHabit.kind);
+        pendingHabit.kind = kind;
+        if (autoIcon) pendingHabit.icon = defaultIcon(kind);
+        pendingHabit.target = kind === "count" ? 8 : kind === "timer" ? 30 : 1;
+        refreshNewHabit('[data-action="kind-select"][data-kind="' + kind + '"]');
+        break;
+      }
+      case "icon-select": {
+        var iconName = el.dataset.iconName;
+        var iconInput = app.querySelector("#habitNameInput");
+        if (iconInput) pendingHabit.name = iconInput.value;
+        pendingHabit.icon = iconName;
+        refreshNewHabit('[data-action="icon-select"][data-icon-name="' + iconName + '"]');
+        break;
+      }
+      case "target-inc":
+      case "target-dec": {
+        var nameEl2 = app.querySelector("#habitNameInput");
+        if (nameEl2) pendingHabit.name = nameEl2.value;
+        pendingHabit.target = Math.max(1, Math.min(240, pendingHabit.target + (action === "target-inc" ? 1 : -1)));
+        refreshNewHabit('[data-action="' + action + '"]');
+        break;
+      }
+      case "create-habit": {
+        var nameEl3 = app.querySelector("#habitNameInput");
+        if (nameEl3) pendingHabit.name = nameEl3.value;
+        if (!pendingHabit.name.trim()) { if (nameEl3) nameEl3.focus(); break; }
+        createHabit();
+        break;
+      }
+      case "reminder-time":
+        timeDialog();
+        break;
+      case "time-step": {
+        if (!modalCtx) break;
+        var unit = el.dataset.unit;
+        var delta = parseInt(el.dataset.delta, 10);
+        if (unit === "hour") modalCtx.hour = ((modalCtx.hour + delta) % 24 + 24) % 24;
+        else modalCtx.minute = (modalCtx.minute + delta + 60) % 60;
+        var hourEl = overlaySlot.querySelector("[data-time-hour]");
+        var minEl2 = overlaySlot.querySelector("[data-time-minute]");
+        if (hourEl) hourEl.textContent = String(modalCtx.hour).padStart(2, "0");
+        if (minEl2) minEl2.textContent = String(modalCtx.minute).padStart(2, "0");
+        break;
+      }
+      case "time-save":
+        if (!modalCtx) break;
+        state.reminderHour = modalCtx.hour;
+        state.reminderMinute = modalCtx.minute;
+        persist();
+        closeModal(function () { render(false); });
+        break;
+      case "cycle-theme":
+        state.themeMode = state.themeMode === "system" ? "light" : state.themeMode === "light" ? "dark" : "system";
+        persist();
+        resolveTheme();
+        render(false);
+        break;
+      case "toggle-reminders":
+        state.remindersOn = !state.remindersOn;
+        persist();
+        render(false);
+        break;
+      case "week-start":
+        choiceDialog("Start week on", ["Monday", "Sunday"], state.weekStartsMonday ? "Monday" : "Sunday", function (value) {
+          state.weekStartsMonday = value === "Monday";
+          persist();
+          render(false);
+        });
+        break;
+      case "data-sheet":
+        dataDialog();
+        break;
+      case "clear-all":
+        closeModal(function () {
+          confirmDialog("Clear habits & history?",
+            "Habits, routines and their records are removed from this device. Your profile and settings stay. This cannot be undone.",
+            "Clear all", function () {
+              state.habits = [];
+              state.routines = [];
+              state.history = {};
+              state.runningHabitId = null;
+              state.timerStartedAt = null;
+              state.timerBaseSeconds = 0;
+              persist();
+              stack = [{ name: "today" }];
+              render(true);
+            });
+        });
+        break;
+      case "reset-app":
+        closeModal(function () {
+          confirmDialog("Reset the app?",
+            "Habits, routines, history and your profile are removed, and setup starts again from the beginning. This cannot be undone.",
+            "Reset app", function () {
+              state = freshState();
+              persist();
+              resolveTheme();
+              obReset();
+              stack = [{ name: "onboarding" }];
+              render(true);
+            }, "danger");
+        });
+        break;
+      case "about":
+        infoDialog("Habit Tracker v1.0",
+          "Local only. There is no account, no sync and no network. Your record stays on this device.");
+        break;
+      case "share-stats":
+        openShareDialog();
+        break;
+      case "share-now":
+        sharePoster();
+        closeModal();
+        break;
+      case "edit-profile":
+        editProfileDialog();
+        break;
+      case "profile-save": {
+        var pInput = overlaySlot.querySelector("#profileNameInput");
+        var pName = pInput ? pInput.value.replace(/\s+/g, " ").trim() : "";
+        if (!pName) { if (pInput) pInput.focus(); break; }
+        state.profile.name = pName;
+        persist();
+        closeModal(function () { render(false); });
+        break;
+      }
+      case "pick-photo":
+        photoTarget = el.dataset.target || "profile";
+        photoInput.value = "";
+        photoInput.click();
+        break;
+      case "remove-photo":
+        photoTarget = el.dataset.target || "profile";
+        applyPhoto("");
+        break;
+      case "ob-photo":
+        photoTarget = "onboarding";
+        photoInput.value = "";
+        photoInput.click();
+        break;
+      case "ob-photo-remove":
+        ob.photo = "";
+        render(false);
+        break;
+      case "ob-next":
+        if (ob.step === 0) {
+          var obInput = app.querySelector("#obName");
+          if (obInput) ob.name = obInput.value;
+          if (!ob.name.trim()) { if (obInput) obInput.focus(); break; }
+        }
+        ob.step = Math.min(2, ob.step + 1);
+        render(true);
+        break;
+      case "ob-back":
+        ob.step = Math.max(0, ob.step - 1);
+        render(true);
+        break;
+      case "ob-toggle": {
+        var group = el.dataset.group;
+        var key = el.dataset.key;
+        if (!group || !key || !ob[group]) break;
+        ob[group][key] = !ob[group][key];
+        render(false);
+        break;
+      }
+      case "ob-finish":
+        finishOnboarding();
+        break;
+      case "modal-close":
+        closeModal();
+        break;
+      case "modal-confirm": {
+        var fn = modalCtx && modalCtx.onYes;
+        closeModal(fn);
+        break;
+      }
+      case "modal-save": {
+        var input = overlaySlot.querySelector("#nameSheetInput");
+        var value = input ? input.value.replace(/\s+/g, " ").trim() : "";
+        if (!value) { if (input) input.focus(); break; }
+        var saveFn = modalCtx && modalCtx.onSave;
+        closeModal(function () { if (saveFn) saveFn(value); });
+        break;
+      }
+      case "modal-choice": {
+        var idx = parseInt(el.dataset.index, 10);
+        var options = modalCtx && modalCtx.options;
+        var pick = modalCtx && modalCtx.onPick;
+        var chosen = options ? options[idx] : null;
+        closeModal(function () { if (pick) pick(chosen); });
+        break;
+      }
+    }
+  });
+
+  document.addEventListener("input", function (e) {
+    if (!e.target) return;
+    if (e.target.id === "habitNameInput") {
+      pendingHabit.name = e.target.value;
+      var createBtn = app.querySelector('[data-action="create-habit"]');
+      if (createBtn) createBtn.disabled = e.target.value.trim() === "";
+    } else if (e.target.id === "obName") {
+      ob.name = e.target.value;
+      var nextBtn = app.querySelector('[data-action="ob-next"]');
+      if (nextBtn) nextBtn.disabled = e.target.value.trim() === "";
+    } else if (e.target.id === "routineNameInput") {
+      pendingRoutine.name = e.target.value;
+      var routineSave = overlaySlot.querySelector('[data-action="routine-save"]');
+      if (routineSave) routineSave.disabled = e.target.value.trim() === "" || !pendingRoutine.habitIds.length;
+    } else if (e.target.id === "habitUnitInput") {
+      pendingHabit.unit = e.target.value;
+    }
+  });
+
+  /* ═══════════════ Clock and boot ═══════════════ */
+  function updateClock() {
+    var now = new Date();
+    document.getElementById("statusTime").textContent =
+      String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  }
+
+  resolveTheme();
+  paintIcons(document);
+  updateClock();
+  window.setInterval(updateClock, 30000);
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && rollover()) render(true);
+  });
+  window.addEventListener("resize", function () {
+    if (activeAnchor) positionPopup();
+  });
+  phoneContent.addEventListener("scroll", function () {
+    if (!activeAnchor) return;
+    var view = phoneContent.getBoundingClientRect();
+    var r = activeAnchor.getBoundingClientRect();
+    if (r.bottom < view.top + 44 || r.top > view.bottom - 24) closeModal();
+    else positionPopup();
+  }, { passive: true });
+  window.addEventListener("popstate", function () {
+    if (suppressPop) { suppressPop = false; return; }
+    historyDepth = Math.max(0, historyDepth - 1);
+    if (modalOpen) { closeModal(null, true); return; }
+    if (currentScreen().name === "onboarding") {
+      if (ob.step > 0) { ob.step -= 1; render(true); }
+      pushHistory();
+      return;
+    }
+    if (stack.length > 1) { goBack(); pushHistory(); return; }
+    pushHistory();
+  });
+  if (!state.profile.onboarded) pushHistory();
+  render(true);
+})();
+</script>
+</body>
+</html>

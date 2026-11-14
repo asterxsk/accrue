@@ -1,0 +1,55 @@
+116 frame '02 · Counter detail' x=430 y=0 w=390 h=844 fill=#0a0a0a
+  117 text '9:41' x=454 y=19 w=31 h=18 fill=#f5f5f5 chars='9:41' font=Inter SemiBold 15.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  118 rectangle 'signal0' x=730 y=30 w=3 h=4 fill=#f5f5f5 r=[1.0, 1.0, 1.0, 1.0]
+  119 rectangle 'signal1' x=736 y=28 w=3 h=6 fill=#f5f5f5 r=[1.0, 1.0, 1.0, 1.0]
+  120 rectangle 'signal2' x=742 y=26 w=3 h=8 fill=#f5f5f5 r=[1.0, 1.0, 1.0, 1.0]
+  121 rectangle 'signal3' x=748 y=24 w=3 h=10 fill=#f5f5f5 r=[1.0, 1.0, 1.0, 1.0]
+  122 frame 'battery' x=770 y=25 w=22 h=11 stroke=#f5f5f5 sw=None r=[3.0, 3.0, 3.0, 3.0]
+  123 rectangle 'bat-fill' x=773 y=28 w=16 h=5 fill=#f5f5f5 r=[1.5, 1.5, 1.5, 1.5]
+  124 rectangle 'bat-nub' x=793 y=27 w=2 h=5 fill=#f5f5f5 r=[1.0, 1.0, 1.0, 1.0]
+  125 ellipse 'back' x=452 y=56 w=44 h=44 fill=#141414 stroke=#52525b sw=None
+  127 text 'Edit' x=730 y=69 w=66 h=16 fill=#7aa2ff chars='Edit' font=Inter SemiBold 13.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  128 ellipse 'icon-badge' x=593 y=122 w=64 h=64 fill=#141414
+  130 text 'Water' x=454 y=202 w=342 h=34 fill=#f5f5f5 chars='Water' font=Inter SemiBold 28.0 lh={'unit': 'pixels', 'value': 34.0} ls={'unit': 'percent', 'value': 0.0} align=None
+  131 text '8 glasses a day' x=454 y=240 w=342 h=16 fill=#818181 chars='8 glasses a day' font=Inter Regular 13.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  132 text '6' x=454 y=272 w=166 h=78 fill=#f5f5f5 chars='6' font=Inter SemiBold 72.0 lh={'unit': 'pixels', 'value': 78.0} ls={'unit': 'percent', 'value': 0.0} align=None
+  133 text '/ 8' x=626 y=312 w=70 h=22 fill=#818181 chars='/ 8' font=Inter Regular 18.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  134 ellipse 'unit-0' x=465 y=376 w=26 h=26 fill=#2f63e8
+  135 ellipse 'unit-1' x=507 y=376 w=26 h=26 fill=#2f63e8
+  136 ellipse 'unit-2' x=549 y=376 w=26 h=26 fill=#2f63e8
+  137 ellipse 'unit-3' x=591 y=376 w=26 h=26 fill=#2f63e8
+  138 ellipse 'unit-4' x=633 y=376 w=26 h=26 fill=#2f63e8
+  139 ellipse 'unit-5' x=675 y=376 w=26 h=26 fill=#2f63e8
+  140 ellipse 'unit-6' x=717 y=376 w=26 h=26 stroke=#52525b sw=None
+  141 ellipse 'unit-7' x=759 y=376 w=26 h=26 stroke=#52525b sw=None
+  142 ellipse 'minus-btn' x=516 y=436 w=64 h=64 stroke=#262626 sw=None
+  143 ellipse 'plus-btn' x=670 y=436 w=64 h=64 fill=#2f63e8
+  145 frame 'streak card' x=454 y=540 w=342 h=88 fill=#141414 stroke=#262626 sw=None r=[16.0, 16.0, 16.0, 16.0]
+    146 text 'Current streak' x=472 y=558 w=76 h=16 fill=#818181 chars='Current streak' font=IBM Plex Serif Italic 12.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+    147 text '12 days' x=472 y=580 w=73 h=24 fill=#f5f5f5 chars='12 days' font=Inter SemiBold 20.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+    378 text 'Best 21 days' x=624 y=584 w=154 h=16 fill=#818181 chars='Best 21 days' font=Inter Regular 13.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  155 text 'This week' x=454 y=652 w=50 h=16 fill=#818181 chars='This week' font=IBM Plex Serif Italic 12.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  156 ellipse 'wk-0' x=454 y=682 w=24 h=24 fill=#2f63e8
+  157 text 'M' x=454 y=716 w=24 h=13 fill=#818181 chars='M' font=Inter Regular 11.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  158 ellipse 'wk-1' x=507 y=682 w=24 h=24 fill=#2f63e8
+  159 text 'T' x=507 y=716 w=24 h=13 fill=#818181 chars='T' font=Inter Regular 11.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  160 ellipse 'wk-2' x=560 y=682 w=24 h=24 fill=#2f63e8
+  161 text 'W' x=560 y=716 w=24 h=13 fill=#818181 chars='W' font=Inter Regular 11.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  162 ellipse 'wk-3' x=613 y=682 w=24 h=24 fill=#2f63e8
+  163 text 'T' x=613 y=716 w=24 h=13 fill=#818181 chars='T' font=Inter Regular 11.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  164 ellipse 'wk-4' x=666 y=682 w=24 h=24 fill=#2f63e8
+  165 text 'F' x=666 y=716 w=24 h=13 fill=#818181 chars='F' font=Inter Regular 11.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  166 ellipse 'wk-today' x=719 y=682 w=24 h=24 stroke=#2f63e8 sw=None
+  167 text 'S' x=719 y=716 w=24 h=13 fill=#818181 chars='S' font=Inter Regular 11.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  168 ellipse 'wk-6' x=772 y=682 w=24 h=24 stroke=#52525b sw=None
+  169 text 'S' x=772 y=716 w=24 h=13 fill=#818181 chars='S' font=Inter Regular 11.0 lh={'unit': 'auto'} ls={'unit': 'percent', 'value': 0.0} align=None
+  172 rectangle 'home indicator' x=575 y=830 w=100 h=4 fill=#f5f5f5 r=[2.0, 2.0, 2.0, 2.0] opacity=0.18
+  787 frame 'icon · chevron-left' x=465 y=69 w=18 h=18
+    788 vector 'path' x=471.75 y=73.5 w=4.5 h=9 stroke=#f5f5f5 sw=None
+  789 frame 'icon · glass-full' x=609 y=138 w=32 h=32
+    790 vector 'path' x=617 y=142 w=16 h=24 stroke=#7aa2ff sw=None
+    791 vector 'path' x=617 y=150 w=16 h=2.66667 stroke=#7aa2ff sw=None
+  792 frame 'icon · minus' x=537 y=457 w=22 h=22
+    793 vector 'path' x=541.583 y=468 w=12.8333 h=0 stroke=#f5f5f5 sw=None
+  794 frame 'icon · plus' x=691 y=457 w=22 h=22
+    795 vector 'path' x=695.583 y=461.583 w=12.8333 h=12.8333 stroke=#ffffff sw=None

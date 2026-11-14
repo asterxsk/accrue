@@ -20,9 +20,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  assets:
-    - assets/branding/enso.png
-
   fonts:
     - family: Inter
       fonts:

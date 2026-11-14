@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_type.dart';
 import '../theme/metrics.dart';
+import '../widgets/brand_mark.dart';
 import '../widgets/ui.dart';
 
 /// Shown in the profile and on the About page.
@@ -46,21 +47,10 @@ class AboutScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Center(
-              child: Container(
-                width: 64,
-                height: 64,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: colors.accentSoft,
-                  borderRadius: BorderRadius.circular(Metrics.rLg),
-                ),
-                child: Image.asset(
-                  'assets/branding/enso.png',
-                  width: 34,
-                  height: 34,
-                  filterQuality: FilterQuality.high,
-                  semanticLabel: appName,
-                ),
+              child: Semantics(
+                label: appName,
+                image: true,
+                child: const BrandMark(size: 68),
               ),
             ),
             const SizedBox(height: 14),

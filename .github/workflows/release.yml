@@ -55,9 +55,14 @@ jobs:
       - name: Read version from pubspec
         id: version
         run: |
-          raw=$(grep '^version:' pubspec.yaml | head -1 | sed 's/version: *//')
-          echo "name=${raw%%+*}" >> "$GITHUB_OUTPUT"
-          echo "code=${raw##*+}" >> "$GITHUB_OUTPUT"
+          raw=$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml)
+          if [[ ! "$raw" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$ ]]; then
+            echo "::error::pubspec version must match MAJOR.MINOR.PATCH+BUILD; got '$raw'"
+            exit 1
+          fi
+          echo "name=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "code=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+          echo "Parsed version ${BASH_REMATCH[1]} (versionCode ${BASH_REMATCH[2]})."
 
       - run: flutter pub get
 

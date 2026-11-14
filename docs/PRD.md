@@ -1,7 +1,7 @@
 # PRD — Accrue
 
 Version 2.0 · 14 November 2026 · Source of truth for the shipped build in `lib/`
-Companions: `README.md` (run/layout), `NOTES.md` (divergences), `HANDOFF.md` (state),
+Companions: `README.md` (run/layout), `NOTES.md` (divergences),
 `design/habit-tracker-prototype.html` (the design this build follows).
 
 ---

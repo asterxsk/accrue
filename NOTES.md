@@ -18,9 +18,9 @@ the device.
 | `lib/app_nav.dart` | `AppNav` + `AppNavScope` so pushed screens can switch tabs |
 | `lib/widgets/icon_library.dart` | Generated: 1,865 Lucide icon bodies + sorted names (`tool/gen_icons.py` regenerates it) |
 | `tool/gen_icons.py` | Converts a local `lucide-static` package into `icon_library.dart` |
-| `test/widget_test.dart` | 22 unit/widget tests |
-| `design/` | New prototype (`habit-tracker-prototype.html`) and `archive/` with the previous design |
-| `screenshots/` | 390×844 web captures plus 1080×2400 Android captures (`09`, `16`–`20`); `archive-old-design/` holds the previous set |
+| `test/widget_test.dart` | 23 unit/widget tests |
+| `design/habit-tracker-prototype.html` | The prototype this build follows |
+| `screenshots/` | 390×844 web captures plus 1080×2400 Android captures (`09`, `16`–`20`) |
 
 ## Design facts encoded in the theme
 

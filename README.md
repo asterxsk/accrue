@@ -94,7 +94,7 @@ installed copy.
 | `tool/gen_icons.py` | Regenerates `lib/widgets/icon_library.dart` from a local `lucide-static` tree |
 | `tool/export_brand.py` | Exports the in-app enso mark to `docs/brand/accrue-enso.svg` |
 | `docs/` | [Product brief](docs/PRD.md) and brand assets |
-| `design/` | The prototype this build follows (earlier design in `design/archive/`) |
+| `design/` | The prototype this build follows |
 | `screenshots/` | Captures of the built app at 390×844, plus the Android focus overlay at 1080×2400 |
 
 Deliberate divergences from the prototype (no photo picking, caption-only sharing, no seeded demo

@@ -9,7 +9,7 @@ import '../theme/app_type.dart';
 import '../theme/metrics.dart';
 import 'app_icon.dart';
 
-/// Shared building blocks for the Habit Tracker surfaces.
+/// Shared building blocks for the Accrue surfaces.
 ///
 /// Every widget here takes its colours from [AppColors] and its rhythm from
 /// [Metrics]; screens stay layout-only.

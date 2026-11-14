@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Type scale from the Habit Tracker prototype.
+/// Type scale for Accrue, from the Claude design prototype.
 ///
 /// Source Serif 4 at 500 for display lines, Inter for the interface. Numbers
 /// that change (counts, timers, percentages) use tabular figures.

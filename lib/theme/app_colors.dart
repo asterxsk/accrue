@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Colour tokens from the Habit Tracker prototype (Claude design system).
+/// Colour tokens for Accrue, from the Claude design prototype.
 ///
 /// Light parchment is the default; dark is a separately tuned set. Widgets
 /// read these through [AppColors.of] and never hard-code a colour.

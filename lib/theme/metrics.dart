@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Layout constants from the Habit Tracker prototype.
+/// Layout constants for Accrue, from the Claude design prototype.
 ///
 /// The prototype is a 412 x 915 handset; the app caps its content at 430 and
 /// centres it on wider surfaces.

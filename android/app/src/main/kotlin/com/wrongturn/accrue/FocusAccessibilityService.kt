@@ -193,7 +193,7 @@ class FocusAccessibilityService : AccessibilityService() {
         )
         column.addView(
             TextView(context).apply {
-                text = "Open Habit Tracker"
+                text = "Open Accrue"
                 setTextColor(Color.parseColor("#141413"))
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)

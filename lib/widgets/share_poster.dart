@@ -66,7 +66,7 @@ class SharePoster extends StatelessWidget {
                   ),
                   const SizedBox(width: 5),
                   Text(
-                    'HABIT TRACKER',
+                    'ACCRUE',
                     style: AppType.eyebrow.copyWith(
                       fontSize: 7,
                       letterSpacing: 0.56,

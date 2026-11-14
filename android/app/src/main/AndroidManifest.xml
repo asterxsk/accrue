@@ -29,7 +29,7 @@
         <service
             android:name=".FocusAccessibilityService"
             android:exported="true"
-            android:label="Habit Tracker focus blocking"
+            android:label="Accrue focus blocking"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

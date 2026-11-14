@@ -19,6 +19,12 @@ Accrue is a quiet place to keep habits. Check things off, count them up, or run 
 see the week settle into shape. There is no account, no sync and no server: every habit, routine
 and streak lives in local storage on the device.
 
+<p align="center">
+  <img src="screenshots/01-today.png" width="228" alt="Today">
+  <img src="screenshots/02-insights.png" width="228" alt="Insights">
+  <img src="screenshots/03-routines.png" width="228" alt="Routines">
+</p>
+
 ## What it does
 
 - **Three kinds of habit.** A check habit is done or not; a count habit takes whatever increment

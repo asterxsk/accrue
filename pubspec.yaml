@@ -1,7 +1,7 @@
 name: accrue
 description: "Accrue: a calm, local habit tracker with check, timer and count habits, routines and insights."
 publish_to: 'none'
-version: 2.1.1+22
+version: 2.1.2+23
 
 environment:
   sdk: ^3.13.0

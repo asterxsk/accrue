@@ -26,6 +26,9 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # Pinned to the Flutter the app is developed against; newer stable
+          # channels deprecate `package:flutter/material.dart`.
+          flutter-version: '3.47.9'
           channel: stable
           cache: true
 

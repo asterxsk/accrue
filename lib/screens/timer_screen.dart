@@ -12,6 +12,7 @@ import '../util/format.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/habit_mark.dart';
+import '../widgets/habit_menu.dart';
 import '../widgets/ui.dart';
 
 Future<void> openTimer(
@@ -50,12 +51,16 @@ class _TimerScreenState extends State<TimerScreen> {
     // A relaunch can land on a timer that is still running; re-arm blocking
     // for the rest of its span instead of leaving the apps open.
     final habit = store.habitById(widget.habitId);
-    if (habit != null && store.isRunning(habit) && store.blockedApps.isNotEmpty) {
+    if (habit != null &&
+        habit.blockDistractions &&
+        store.isRunning(habit) &&
+        store.blockedApps.isNotEmpty) {
       _armBlocking(habit);
     }
   }
 
   Future<void> _armBlocking(Habit habit) async {
+    if (!habit.blockDistractions || store.blockedApps.isEmpty) return;
     final remaining = habit.target * 60 - store.liveSeconds(habit);
     // Past the goal the timer keeps running, so blocking gets the same five
     // minute floor instead of never arming.
@@ -78,8 +83,19 @@ class _TimerScreenState extends State<TimerScreen> {
   /// habit), so blocking follows it rather than the buttons.
   void _syncBlocking() {
     final habit = store.habitById(widget.habitId);
-    final running = habit != null && store.isRunning(habit);
-    if (!running && _blocking) _stopBlocking();
+    if (habit == null) {
+      if (_blocking) _stopBlocking();
+      return;
+    }
+    final wanted =
+        store.isRunning(habit) &&
+        habit.blockDistractions &&
+        store.blockedApps.isNotEmpty;
+    if (!wanted && _blocking) {
+      _stopBlocking();
+    } else if (wanted && !_blocking) {
+      _armBlocking(habit);
+    }
   }
 
   Future<void> _stopBlocking() async {
@@ -95,7 +111,7 @@ class _TimerScreenState extends State<TimerScreen> {
       await _stopBlocking();
       return;
     }
-    if (store.blockedApps.isEmpty) return;
+    if (!habit.blockDistractions || store.blockedApps.isEmpty) return;
     await _armBlocking(habit);
   }
 
@@ -134,11 +150,7 @@ class _TimerScreenState extends State<TimerScreen> {
               children: [
                 HeadBar(
                   onBack: () => Navigator.of(context).maybePop(),
-                  actionLabel: 'End',
-                  onAction: () {
-                    if (running) store.stopTimer();
-                    Navigator.of(context).maybePop();
-                  },
+                  trailing: HabitActions(store: store, habit: habit),
                 ),
                 const SizedBox(height: 18),
                 Text(

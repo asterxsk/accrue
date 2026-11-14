@@ -11,8 +11,7 @@ import '../util/share.dart';
 import 'app_icon.dart';
 import 'share_poster.dart';
 import 'ui.dart';
-
-enum DataChoice { clearAll, resetApp }
+import 'wheel_picker.dart';
 
 class RoutineEdit {
   const RoutineEdit({required this.name, required this.habitIds});
@@ -57,46 +56,46 @@ class _DialogPanel extends StatelessWidget {
         child: SizedBox(
           width: width,
           child: Material(
-          color: colors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Metrics.rLg),
-            side: BorderSide(color: colors.line),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppType.dialogTitle.copyWith(color: colors.text),
-                ),
-                if (description != null) ...[
-                  const SizedBox(height: 8),
+            color: colors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Metrics.rLg),
+              side: BorderSide(color: colors.line),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    description!,
-                    style: AppType.meta.copyWith(
-                      fontSize: 14,
-                      height: 1.55,
-                      color: colors.muted,
+                    title,
+                    style: AppType.dialogTitle.copyWith(color: colors.text),
+                  ),
+                  if (description != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      description!,
+                      style: AppType.meta.copyWith(
+                        fontSize: 14,
+                        height: 1.55,
+                        color: colors.muted,
+                      ),
+                    ),
+                  ],
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(top: 14),
+                      child: body,
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  actions,
                 ],
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(top: 14),
-                    child: body,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                actions,
-              ],
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -128,19 +127,21 @@ double _fittedWidth(
   final labelWidth = widest(labels, AppType.button) + 28;
   final descWidth = description == null
       ? 0.0
-      : widest([description], AppType.meta.copyWith(fontSize: 14)).clamp(
-          0.0,
-          296.0,
-        );
+      : widest([
+          description,
+        ], AppType.meta.copyWith(fontSize: 14)).clamp(0.0, 296.0);
   // Buttons sit side by side; 32pt of horizontal padding each plus 8pt gaps.
   var buttonWidth = 0.0;
   for (final label in buttons) {
     buttonWidth += widest([label], AppType.button) + 32;
   }
   if (buttons.length > 1) buttonWidth += 8.0 * (buttons.length - 1);
-  final content = [titleWidth, labelWidth, buttonWidth, descWidth].reduce(
-    (a, b) => a > b ? a : b,
-  );
+  final content = [
+    titleWidth,
+    labelWidth,
+    buttonWidth,
+    descWidth,
+  ].reduce((a, b) => a > b ? a : b);
   return (content + 40).clamp(232.0, 340.0);
 }
 
@@ -396,9 +397,7 @@ class _EntryDialogState extends State<_EntryDialog> {
 
   void _submit() {
     if (!_canSubmit) return;
-    Navigator.of(
-      context,
-    ).pop(widget.number == null ? _text : _numberValue);
+    Navigator.of(context).pop(widget.number == null ? _text : _numberValue);
   }
 
   @override
@@ -434,7 +433,10 @@ class _EntryDialogState extends State<_EntryDialog> {
           ),
           if (widget.hint != null) ...[
             const SizedBox(height: 10),
-            Text(widget.hint!, style: AppType.micro.copyWith(color: colors.faint)),
+            Text(
+              widget.hint!,
+              style: AppType.micro.copyWith(color: colors.faint),
+            ),
           ],
         ],
       ),
@@ -445,7 +447,11 @@ class _EntryDialogState extends State<_EntryDialog> {
           expand: false,
           onPressed: () => Navigator.of(context).pop(),
         ),
-        AppButton(label: widget.buttonLabel, expand: false, onPressed: _canSubmit ? _submit : null),
+        AppButton(
+          label: widget.buttonLabel,
+          expand: false,
+          onPressed: _canSubmit ? _submit : null,
+        ),
       ]),
     );
   }
@@ -505,9 +511,14 @@ Future<({int hour, int minute})?> timeDialog(
   BuildContext context, {
   required int hour,
   required int minute,
+  bool clock24 = true,
 }) {
   var nextHour = hour;
   var nextMinute = minute;
+  final hours = [
+    for (var h = 0; h < 24; h++)
+      clock24 ? h.toString().padLeft(2, '0') : '${h % 12 == 0 ? 12 : h % 12}',
+  ];
   return showDialog<({int hour, int minute})>(
     context: context,
     barrierColor: AppColors.of(context).scrim,
@@ -515,6 +526,7 @@ Future<({int hour, int minute})?> timeDialog(
       return StatefulBuilder(
         builder: (context, setState) {
           final colors = AppColors.of(context);
+          final pm = nextHour >= 12;
           return _DialogPanel(
             title: 'Reminder time',
             description: 'Every day',
@@ -523,31 +535,52 @@ Future<({int hour, int minute})?> timeDialog(
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _TimeUnit(
-                      value: nextHour,
-                      label: 'Hour',
-                      onUp: () =>
-                          setState(() => nextHour = (nextHour + 1) % 24),
-                      onDown: () => setState(
-                        () => nextHour = (nextHour - 1 + 24) % 24,
+                    WheelPicker(
+                      values: hours,
+                      selected: clock24
+                          ? nextHour
+                          : (nextHour % 12 == 0 ? 11 : nextHour % 12 - 1),
+                      semanticLabel: 'Hour',
+                      onChanged: (index) => setState(() {
+                        nextHour = clock24
+                            ? index
+                            : (index + 1) % 12 + (pm ? 12 : 0);
+                      }),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      ':',
+                      style: AppType.count.copyWith(
+                        fontSize: 20,
+                        color: colors.faint,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    _TimeUnit(
-                      value: nextMinute,
-                      label: 'Minute',
-                      onUp: () => setState(
-                        () => nextMinute = (nextMinute + 5) % 60,
-                      ),
-                      onDown: () => setState(
-                        () => nextMinute = (nextMinute - 5 + 60) % 60,
-                      ),
+                    const SizedBox(width: 4),
+                    WheelPicker(
+                      values: [
+                        for (var m = 0; m < 60; m++)
+                          m.toString().padLeft(2, '0'),
+                      ],
+                      selected: nextMinute,
+                      semanticLabel: 'Minute',
+                      onChanged: (index) => setState(() => nextMinute = index),
                     ),
+                    if (!clock24) ...[
+                      const SizedBox(width: 12),
+                      MeridiemToggle(
+                        pm: pm,
+                        onChanged: (isPm) => setState(
+                          () => nextHour = (nextHour % 12) + (isPm ? 12 : 0),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  'Stored and shown, but no notification is delivered.',
+                  'Delivered every day at '
+                  '${Fmt.clockLabel(nextHour * 60 + nextMinute, clock24: clock24)}'
+                  ' while the habit is active.',
                   style: AppType.micro.copyWith(color: colors.faint),
                   textAlign: TextAlign.center,
                 ),
@@ -563,10 +596,9 @@ Future<({int hour, int minute})?> timeDialog(
               AppButton(
                 label: 'Save',
                 expand: false,
-                onPressed: () => Navigator.of(context).pop((
-                  hour: nextHour,
-                  minute: nextMinute,
-                )),
+                onPressed: () =>
+                    Navigator.of(context)
+                        .pop((hour: nextHour, minute: nextMinute)),
               ),
             ]),
           );
@@ -608,18 +640,17 @@ Future<int?> durationDialog(
                     _TimeUnit(
                       value: nextHour,
                       label: 'Hour',
-                      onUp: () => setState(() => nextHour = (nextHour + 1) % 24),
-                      onDown: () => setState(
-                        () => nextHour = (nextHour - 1 + 24) % 24,
-                      ),
+                      onUp: () =>
+                          setState(() => nextHour = (nextHour + 1) % 24),
+                      onDown: () =>
+                          setState(() => nextHour = (nextHour - 1 + 24) % 24),
                     ),
                     const SizedBox(width: 8),
                     _TimeUnit(
                       value: nextMinute,
                       label: 'Minute',
-                      onUp: () => setState(
-                        () => nextMinute = (nextMinute + 5) % 60,
-                      ),
+                      onUp: () =>
+                          setState(() => nextMinute = (nextMinute + 5) % 60),
                       onDown: () => setState(
                         () => nextMinute = (nextMinute - 5 + 60) % 60,
                       ),
@@ -628,9 +659,8 @@ Future<int?> durationDialog(
                     _TimeUnit(
                       value: nextSecond,
                       label: 'Second',
-                      onUp: () => setState(
-                        () => nextSecond = (nextSecond + 15) % 60,
-                      ),
+                      onUp: () =>
+                          setState(() => nextSecond = (nextSecond + 15) % 60),
                       onDown: () => setState(
                         () => nextSecond = (nextSecond - 15 + 60) % 60,
                       ),
@@ -727,40 +757,6 @@ class _TimeUnit extends StatelessWidget {
   }
 }
 
-Future<DataChoice?> dataDialog(BuildContext context) {
-  return _showPanel<DataChoice>(
-    context,
-    title: 'Data & export',
-    description:
-        'Everything lives on this device. Choose how much to clear.',
-    body: Column(
-      children: [
-        ChoiceRow(
-          label: 'Clear habits & history',
-          icon: 'trash',
-          danger: true,
-          onTap: () => Navigator.of(context).pop(DataChoice.clearAll),
-        ),
-        const SizedBox(height: 6),
-        ChoiceRow(
-          label: 'Reset app & profile',
-          icon: 'trash',
-          danger: true,
-          onTap: () => Navigator.of(context).pop(DataChoice.resetApp),
-        ),
-      ],
-    ),
-    actions: dialogActions([
-      AppButton(
-        label: 'Cancel',
-        tone: AppButtonTone.secondary,
-        expand: false,
-        onPressed: () => Navigator.of(context).pop(),
-      ),
-    ]),
-  );
-}
-
 Future<String?> editProfileDialog(
   BuildContext context, {
   required String name,
@@ -805,8 +801,9 @@ Future<void> ideasDialog(BuildContext context, HabitStore store) {
                       style: AppType.eyebrow.copyWith(color: colors.muted),
                     ),
                   ),
-                  for (final idea
-                      in habitIdeas.where((idea) => idea.group == group))
+                  for (final idea in habitIdeas.where(
+                    (idea) => idea.group == group,
+                  ))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Builder(
@@ -856,7 +853,10 @@ Future<void> ideasDialog(BuildContext context, HabitStore store) {
 }
 
 /// Returns null when the dialog was dismissed without sharing.
-Future<ShareOutcome?> shareDialog(BuildContext context, HabitStore store) async {
+Future<ShareOutcome?> shareDialog(
+  BuildContext context,
+  HabitStore store,
+) async {
   return _showPanel<ShareOutcome>(
     context,
     title: 'Share your stats',
@@ -868,9 +868,7 @@ Future<ShareOutcome?> shareDialog(BuildContext context, HabitStore store) async 
           "Opens the system share sheet with this week's numbers as text. "
           'On the web the caption goes to the clipboard instead. The poster '
           'is previewed here, not exported as an image.',
-          style: AppType.micro.copyWith(
-            color: AppColors.of(context).faint,
-          ),
+          style: AppType.micro.copyWith(color: AppColors.of(context).faint),
           textAlign: TextAlign.center,
         ),
       ],
@@ -896,9 +894,8 @@ Future<ShareOutcome?> shareDialog(BuildContext context, HabitStore store) async 
             await Clipboard.setData(ClipboardData(text: caption));
           }
           if (context.mounted) {
-            Navigator.of(context).pop(
-              shared ? ShareOutcome.shared : ShareOutcome.copied,
-            );
+            Navigator.of(context)
+                .pop(shared ? ShareOutcome.shared : ShareOutcome.copied);
           }
         },
       ),

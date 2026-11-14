@@ -47,11 +47,7 @@ void main() {
       final store = await seededStore();
       expect(store.onboarded, isTrue);
       expect(store.profileName, 'Alex');
-      expect(store.habits.map((habit) => habit.name), [
-        'Water',
-        'Gym',
-        'Read',
-      ]);
+      expect(store.habits.map((habit) => habit.name), ['Water', 'Gym', 'Read']);
       expect(store.routines, hasLength(1));
       expect(store.routines.first.name, 'Morning');
       expect(store.routines.first.habitIds, [
@@ -163,7 +159,13 @@ void main() {
 
     test('the icon library is searchable and covers common habits', () {
       expect(lucideIconNames.length, greaterThan(1000));
-      for (final name in ['droplet', 'footprints', 'book-open', 'moon', 'dumbbell']) {
+      for (final name in [
+        'droplet',
+        'footprints',
+        'book-open',
+        'moon',
+        'dumbbell',
+      ]) {
         expect(lucideIcons.containsKey(name), isTrue, reason: name);
       }
       expect(
@@ -199,10 +201,11 @@ void main() {
       for (final habit in store.habits) {
         store.setHabitDone(habit, true);
       }
-      final expected = (store.doneCount /
-              (store.habits.length * store.elapsedWeekDays) *
-              100)
-          .round();
+      final expected =
+          (store.doneCount /
+                  (store.habits.length * store.elapsedWeekDays) *
+                  100)
+              .round();
       expect(store.weekPercent, expected);
       store.setHabitDone(water, false);
       expect(store.weekPercent, lessThan(expected));
@@ -216,10 +219,7 @@ void main() {
       store.history[yesterday] = {water.id};
       store.deleteHabit(water);
       expect(store.habits.map((habit) => habit.name), isNot(contains('Water')));
-      expect(
-        store.routines.first.habitIds,
-        isNot(contains(water.id)),
-      );
+      expect(store.routines.first.habitIds, isNot(contains(water.id)));
       expect(store.history.containsKey(yesterday), isFalse);
     });
 
@@ -270,8 +270,103 @@ void main() {
       expect(store.onboarded, isFalse);
       expect(store.profileName, '');
     });
-  });
 
+    test('a counted habit can step in halves', () async {
+      final store = await seededStore();
+      final habit = store.addHabit(
+        name: 'Water',
+        kind: HabitKind.count,
+        icon: 'water',
+        target: 4,
+        unit: 'bottles',
+        step: 0.5,
+      );
+      for (var i = 0; i < 5; i++) {
+        store.increment(habit);
+      }
+      expect(habit.count, 2.5);
+      expect(Fmt.count(habit.count), '2.5');
+      store.decrement(habit);
+      expect(habit.count, 2.0);
+      expect(Fmt.count(habit.count), '2');
+    });
+
+    test('month heat fractions follow the completed share', () async {
+      final store = await seededStore();
+      final now = store.today;
+      final twoDaysAgo = Fmt.addDays(now, -2);
+      store.history[Fmt.dateKey(twoDaysAgo)] = {
+        store.habits[0].id,
+        store.habits[1].id,
+      };
+      expect(
+        store.completedFractionOn(twoDaysAgo),
+        closeTo(2 / store.habits.length, 0.001),
+      );
+      expect(
+        store.completedFractionOn(twoDaysAgo, habitId: store.habits[0].id),
+        1,
+      );
+      expect(
+        store.completedFractionOn(twoDaysAgo, habitId: store.habits[2].id),
+        0,
+      );
+      expect(
+        store.monthGrid.expand((row) => row).whereType<DateTime>(),
+        isNotEmpty,
+      );
+    });
+
+    test('a backup round-trips through import', () async {
+      final store = await seededStore();
+      final water = habitNamed(store, 'Water');
+      final habit = store.addHabit(
+        name: 'Study',
+        kind: HabitKind.timer,
+        icon: 'book',
+        target: 60,
+        reminderMinutes: 16 * 60,
+      );
+      store.setCount(water, 2.5);
+      store.setProfile(name: 'Sam', bio: 'One line', photo: '');
+      final backup = store.exportJson();
+
+      final restored = await freshStore();
+      final result = restored.importJson(backup);
+      expect(result.ok, isTrue);
+      expect(restored.habits.map((row) => row.name), contains('Study'));
+      final restoredWater = habitNamed(restored, 'Water');
+      expect(restoredWater.count, 2.5);
+      expect(habitNamed(restored, 'Study').reminderMinutes, 16 * 60);
+      expect(restored.profileName, 'Sam');
+      expect(restored.profileBio, 'One line');
+      expect(habit.reminderMinutes, 16 * 60);
+    });
+
+    test('a broken import leaves the store untouched', () async {
+      final store = await seededStore();
+      final before = store.habits.length;
+      final result = store.importJson('{"nope": true}');
+      expect(result.ok, isFalse);
+      expect(store.habits.length, before);
+      expect(store.importJson('not json').ok, isFalse);
+    });
+
+    test('the clock setting reads times in 12 or 24 hours', () async {
+      final store = await seededStore();
+      expect(store.clock24, isTrue);
+      expect(store.formatTime(16 * 60 + 30), '16:30');
+      store.setClock24(false);
+      expect(store.clockLabel, '12-hour');
+      expect(store.formatTime(16 * 60 + 30), '4:30 PM');
+      expect(store.formatTime(0), '12:00 AM');
+      expect(store.formatTime(12 * 60 + 5), '12:05 PM');
+
+      final restored = await HabitStore.load();
+      expect(restored.clock24, isFalse);
+      expect(restored.formatTime(9 * 60), '9:00 AM');
+    });
+  });
 
   group('widgets', () {
     Future<void> pumpStore(WidgetTester tester, HabitStore store) async {
@@ -297,21 +392,18 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Alex');
       await tester.pump();
       expect(
-        tester.widget<AppButton>(find.widgetWithText(AppButton, 'Continue'))
+        tester
+            .widget<AppButton>(find.widgetWithText(AppButton, 'Continue'))
             .onPressed,
         isNotNull,
       );
 
-      await tester.ensureVisible(
-        find.widgetWithText(AppButton, 'Continue'),
-      );
+      await tester.ensureVisible(find.widgetWithText(AppButton, 'Continue'));
       await tester.tap(find.widgetWithText(AppButton, 'Continue'));
       await tester.pumpAndSettle();
       expect(find.text('Start with a few'), findsOneWidget);
 
-      await tester.ensureVisible(
-        find.widgetWithText(AppButton, 'Continue'),
-      );
+      await tester.ensureVisible(find.widgetWithText(AppButton, 'Continue'));
       await tester.tap(find.widgetWithText(AppButton, 'Continue'));
       await tester.pumpAndSettle();
       expect(find.text('Then a routine'), findsOneWidget);
@@ -341,24 +433,46 @@ void main() {
       expect(find.textContaining('of 3 done'), findsOneWidget);
     });
 
-    testWidgets('a count row opens the detail and steps the count', (
-      tester,
-    ) async {
+    testWidgets(
+      'a count row increments on tap and opens detail from the dots',
+      (tester) async {
+        final store = await seededStore();
+        await pumpStore(tester, store);
+
+        await tester.tap(find.text('Water'));
+        await tester.pumpAndSettle();
+        expect(habitNamed(store, 'Water').count, 1);
+        expect(find.text('8 glasses a day'), findsNothing);
+
+        await tester.tap(
+          find.byWidgetPredicate(
+            (widget) => widget is AppIconButton && widget.label == 'Open Water',
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('8 glasses a day'), findsOneWidget);
+        expect(find.text('CURRENT STREAK'), findsOneWidget);
+
+        final plus = find.byWidgetPredicate(
+          (widget) => widget is AppIconButton && widget.label == '1 more',
+        );
+        await tester.tap(plus);
+        await tester.pumpAndSettle();
+        expect(habitNamed(store, 'Water').count, 2);
+      },
+    );
+
+    testWidgets('swiping moves between tabs', (tester) async {
       final store = await seededStore();
       await pumpStore(tester, store);
 
-      await tester.tap(find.text('Water'));
+      await tester.fling(find.byType(PageView), const Offset(-320, 0), 1200);
       await tester.pumpAndSettle();
-      expect(find.text('8 glasses a day'), findsOneWidget);
-      expect(find.text('CURRENT STREAK'), findsOneWidget);
+      expect(find.text('completion this week'), findsOneWidget);
 
-      final plus = find.byWidgetPredicate(
-        (widget) => widget is AppIconButton && widget.label == 'One more',
-      );
-      await tester.tap(plus);
+      await tester.fling(find.byType(PageView), const Offset(500, 0), 2000);
       await tester.pumpAndSettle();
-      expect(habitNamed(store, 'Water').count, 1);
-      expect(find.text('1'), findsWidgets);
+      expect(find.textContaining('of 3 done'), findsOneWidget);
     });
 
     testWidgets('a routine card opens the runner and marks a habit done', (
@@ -367,6 +481,13 @@ void main() {
       final store = await seededStore();
       await pumpStore(tester, store);
 
+      await tester.tap(
+        find.descendant(
+          of: find.byType(NavPill),
+          matching: find.text('Routines'),
+        ),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Morning'));
       await tester.pumpAndSettle();
       expect(find.text('0 of 2 done · next: Water'), findsOneWidget);
@@ -398,8 +519,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Local profile · nothing syncs, nothing leaves.'),
-          findsOneWidget);
+      expect(
+        find.text('Local profile · nothing syncs, nothing leaves.'),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('Appearance').last);
       await tester.pumpAndSettle();

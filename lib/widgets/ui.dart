@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -140,11 +141,13 @@ class HeadBar extends StatelessWidget {
             )
           else
             const Spacer(),
-          if (trailing != null)
-            trailing!
-          else if (actionLabel != null)
+          if (trailing != null) ...[
+            trailing!,
+            if (actionLabel != null) const SizedBox(width: 4),
+          ],
+          if (actionLabel != null)
             HeadAction(label: actionLabel!, onTap: onAction)
-          else
+          else if (trailing == null)
             const SizedBox(width: 44),
         ],
       ),
@@ -545,6 +548,7 @@ class LabeledField extends StatelessWidget {
     this.onSubmitted,
     this.inputFormatters,
     this.textCapitalization = TextCapitalization.none,
+    this.maxLines = 1,
   });
 
   final String label;
@@ -559,6 +563,7 @@ class LabeledField extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final List<TextInputFormatter>? inputFormatters;
   final TextCapitalization textCapitalization;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -587,6 +592,7 @@ class LabeledField extends StatelessWidget {
           textInputAction: textInputAction,
           onChanged: onChanged,
           onSubmitted: onSubmitted,
+          maxLines: maxLines,
         ),
       ],
     );
@@ -607,6 +613,7 @@ class AppTextField extends StatefulWidget {
     this.onSubmitted,
     this.inputFormatters,
     this.textCapitalization = TextCapitalization.none,
+    this.maxLines = 1,
   });
 
   final TextEditingController controller;
@@ -620,6 +627,7 @@ class AppTextField extends StatefulWidget {
   final ValueChanged<String>? onSubmitted;
   final List<TextInputFormatter>? inputFormatters;
   final TextCapitalization textCapitalization;
+  final int maxLines;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -688,6 +696,8 @@ class _AppTextFieldState extends State<AppTextField> {
         textCapitalization: widget.textCapitalization,
         onChanged: widget.onChanged,
         onSubmitted: widget.onSubmitted,
+        maxLines: widget.maxLines,
+        minLines: widget.maxLines > 1 ? 3 : null,
         style: AppType.field.copyWith(color: colors.text),
         cursorColor: colors.accent,
         cursorWidth: 1.6,
@@ -838,138 +848,80 @@ class AppSwitch extends StatelessWidget {
   }
 }
 
-/// 56pt setting line that opens its options inline, below the row.
-class SettingsSelect extends StatelessWidget {
-  const SettingsSelect({
+/// Two-to-four option slider: the active option sits on a raised thumb that
+/// slides between choices.
+class SegmentedToggle extends StatelessWidget {
+  const SegmentedToggle({
     super.key,
-    required this.label,
     required this.options,
     required this.selected,
-    required this.expanded,
-    required this.onToggle,
-    required this.onSelected,
+    required this.onChanged,
   });
 
-  final String label;
   final List<String> options;
   final String selected;
-  final bool expanded;
-  final VoidCallback onToggle;
-  final ValueChanged<String> onSelected;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          constraints: const BoxConstraints(minHeight: 56),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: colors.line)),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onToggle,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: AppType.body.copyWith(color: colors.text),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      selected,
-                      style: AppType.meta.copyWith(
-                        fontSize: 14,
-                        color: colors.muted,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    AppIcon(
-                      expanded ? 'chevron-up' : 'chevron-down',
-                      size: 16,
-                      color: colors.faint,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          alignment: Alignment.topLeft,
-          child: expanded
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 0; i < options.length; i++)
-                      _SettingsOption(
-                        label: options[i],
-                        selected: options[i] == selected,
-                        last: i == options.length - 1,
-                        onTap: () => onSelected(options[i]),
-                      ),
-                  ],
-                )
-              : const SizedBox(width: double.infinity),
-        ),
-      ],
-    );
-  }
-}
-
-class _SettingsOption extends StatelessWidget {
-  const _SettingsOption({
-    required this.label,
-    required this.selected,
-    required this.last,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final bool last;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
+    final index = options.indexOf(selected).clamp(0, options.length - 1);
     return Container(
-      constraints: const BoxConstraints(minHeight: 48),
+      height: 44,
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: last ? Colors.transparent : colors.line),
-        ),
+        color: colors.surface2,
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final segment = constraints.maxWidth / math.max(1, options.length);
+          return Stack(
             children: [
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppType.body.copyWith(
-                    color: selected ? colors.accent : colors.text,
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                left: index * segment,
+                top: 0,
+                bottom: 0,
+                width: segment,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: colors.line),
                   ),
                 ),
               ),
-              if (selected)
-                AppIcon('check', size: 16, color: colors.accent),
-              const SizedBox(width: 2),
+              Row(
+                children: [
+                  for (final option in options)
+                    Expanded(
+                      child: Semantics(
+                        selected: option == selected,
+                        button: true,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => onChanged(option),
+                          child: Center(
+                            child: Text(
+                              option,
+                              style: AppType.metaStrong.copyWith(
+                                fontSize: 13,
+                                color: option == selected
+                                    ? colors.text
+                                    : colors.muted,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -1034,22 +986,58 @@ class SettingsRow extends StatelessWidget {
   }
 }
 
-/// Initial-based avatar; the prototype's photo picker is not in this build.
+/// Initial-based avatar, or the profile photo when one is set.
 class Avatar extends StatelessWidget {
   const Avatar({
     super.key,
     required this.name,
     this.size = 52,
     this.serif = false,
+    this.photo = '',
   });
 
   final String name;
   final double size;
   final bool serif;
 
+  /// Base64 image bytes. Empty falls back to the initial.
+  final String photo;
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final bytes = _decode(photo);
+    if (bytes != null) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: colors.line),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          errorBuilder: (_, _, _) => _initial(context, colors),
+        ),
+      );
+    }
+    return _initial(context, colors);
+  }
+
+  static Uint8List? _decode(String value) {
+    if (value.isEmpty) return null;
+    try {
+      final bytes = base64Decode(value);
+      return bytes.isEmpty ? null : bytes;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _initial(BuildContext context, AppColors colors) {
     final trimmed = name.trim();
     final initial = trimmed.isEmpty
         ? null

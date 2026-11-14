@@ -1,16 +1,21 @@
 name: accrue
 description: "Accrue: a calm, local habit tracker with check, timer and count habits, routines and insights."
 publish_to: 'none'
-version: 2.1.2+23
+version: 2.2.0+24
 
 environment:
   sdk: ^3.13.0
 
 dependencies:
+  file_picker: ^13.3.3
   flutter:
     sdk: flutter
+  flutter_local_notifications: ^23.0.2
   flutter_svg: ^2.0.10
+  flutter_timezone: ^5.1.1
+  image_picker: ^1.2.4
   shared_preferences: ^2.3.2
+  timezone: ^0.11.2
 
 dev_dependencies:
   flutter_test:

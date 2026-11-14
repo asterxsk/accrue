@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit.dart';
 import '../util/format.dart';
+import '../util/reminders.dart';
 
 /// Single source of truth for habits, routines, history and preferences.
 ///
@@ -30,15 +31,19 @@ class HabitStore extends ChangeNotifier {
   Map<String, Set<String>> history = {};
 
   ThemeMode themeMode = ThemeMode.system;
-  bool remindersOn = true;
-  int reminderHour = 8;
-  int reminderMinute = 0;
   bool weekStartsMonday = true;
+
+  /// Times read as 24-hour by default; the profile can switch to 12-hour.
+  bool clock24 = true;
 
   /// App packages drawn over while a focus timer runs.
   Set<String> blockedApps = {};
 
   String profileName = '';
+  String profileBio = '';
+
+  /// Profile photo as base64 JPEG/PNG bytes, empty when none.
+  String profilePhoto = '';
   bool onboarded = false;
 
   /// Habit whose timer is currently running, if any.
@@ -55,6 +60,7 @@ class HabitStore extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final store = HabitStore._(prefs);
     store._restore();
+    store._syncReminders();
     return store;
   }
 
@@ -77,12 +83,12 @@ class HabitStore extends ChangeNotifier {
     if (habit == null) return 0;
     return switch (habit.kind) {
       HabitKind.check => habit.checked ? 1 : 0,
-      HabitKind.count => habit.target <= 0
-          ? 0
-          : (habit.count / habit.target).clamp(0.0, 1.0),
-      HabitKind.timer => habit.target <= 0
-          ? 0
-          : (habit.seconds / (habit.target * 60)).clamp(0.0, 1.0),
+      HabitKind.count =>
+        habit.target <= 0 ? 0 : (habit.count / habit.target).clamp(0.0, 1.0),
+      HabitKind.timer =>
+        habit.target <= 0
+            ? 0
+            : (habit.seconds / (habit.target * 60)).clamp(0.0, 1.0),
     };
   }
 
@@ -111,9 +117,10 @@ class HabitStore extends ChangeNotifier {
   int routineDoneCount(Routine routine) =>
       routineHabits(routine).where(isDone).length;
 
-  int routineMinutes(Routine routine) => routineHabits(routine)
-      .where((habit) => habit.kind == HabitKind.timer)
-      .fold(0, (sum, habit) => sum + habit.target);
+  int routineMinutes(Routine routine) =>
+      routineHabits(routine)
+          .where((habit) => habit.kind == HabitKind.timer)
+          .fold(0, (sum, habit) => sum + habit.target);
 
   String? currentRoutineHabitId(Routine routine) {
     for (final habit in routineHabits(routine)) {
@@ -219,16 +226,78 @@ class HabitStore extends ChangeNotifier {
 
   /// Habits with a running streak, highest first.
   List<({Habit habit, int days})> get runningStreaks {
-    final rows = habits
-        .map((habit) => (habit: habit, days: streakOf(habit)))
-        .where((row) => row.days > 0)
-        .toList()
-      ..sort((a, b) => b.days.compareTo(a.days));
+    final rows =
+        habits
+            .map((habit) => (habit: habit, days: streakOf(habit)))
+            .where((row) => row.days > 0)
+            .toList()
+          ..sort((a, b) => b.days.compareTo(a.days));
     return rows;
   }
 
-  int get bestStreak =>
-      habits.isEmpty ? 0 : habits.map(streakOf).reduce(max);
+  int get bestStreak => habits.isEmpty ? 0 : habits.map(streakOf).reduce(max);
+
+  // --------------------------------------------------------------- the month
+
+  DateTime get monthStart => DateTime(today.year, today.month, 1);
+
+  DateTime get monthEnd => DateTime(today.year, today.month + 1, 0);
+
+  /// Week-aligned month rows; null cells pad the first and last week.
+  List<List<DateTime?>> get monthGrid {
+    final first = monthStart;
+    final last = monthEnd;
+    final offset = weekStartsMonday
+        ? (first.weekday - 1) % 7
+        : first.weekday % 7;
+    final rows = <List<DateTime?>>[];
+    var cursor = Fmt.addDays(first, -offset);
+    while (!cursor.isAfter(last)) {
+      rows.add([
+        for (var i = 0; i < 7; i++)
+          () {
+            final day = Fmt.addDays(cursor, i);
+            return day.month == first.month ? day : null;
+          }(),
+      ]);
+      cursor = Fmt.addDays(cursor, 7);
+    }
+    return rows;
+  }
+
+  /// Fraction of habits completed on [day], 0..1. With [habitId], it is 0 or 1.
+  double completedFractionOn(DateTime day, {String? habitId}) {
+    if (day.isAfter(today)) return 0;
+    if (habits.isEmpty) return 0;
+    if (habitId != null) return doneOn(day, habitId) ? 1 : 0;
+    return completedCountOn(day) / habits.length;
+  }
+
+  /// Percentage of elapsed days in [from, to] for all habits or one habit.
+  int percentBetween(DateTime from, DateTime to, {String? habitId}) {
+    final first = Fmt.startOfDay(from);
+    final last = Fmt.startOfDay(to);
+    final days = Fmt.diffDays(first, last) + 1;
+    if (days <= 0) return 0;
+    var sum = 0.0;
+    for (var i = 0; i < days; i++) {
+      sum += completedFractionOn(Fmt.addDays(first, i), habitId: habitId);
+    }
+    return (sum / days * 100).round();
+  }
+
+  /// Percentage for the week so far, optionally for one habit.
+  int weekPercentFor({String? habitId}) =>
+      percentBetween(weekStart, today, habitId: habitId);
+
+  /// Percentage for the month so far, optionally for one habit.
+  int monthPercentFor({String? habitId}) =>
+      percentBetween(monthStart, today, habitId: habitId);
+
+  /// Per-day percentages for a habit filter; all habits when [habitId] is null.
+  List<int> weekSeriesFor({String? habitId}) => weekDays.map((day) {
+    return (completedFractionOn(day, habitId: habitId) * 100).round();
+  }).toList();
 
   // ---------------------------------------------------------------- copy
 
@@ -245,13 +314,15 @@ class HabitStore extends ChangeNotifier {
     switch (habit.kind) {
       case HabitKind.count:
         return (
-          text: '${Fmt.count(habit.count)} of ${Fmt.count(habit.target)} '
+          text:
+              '${Fmt.count(habit.count)} of ${Fmt.count(habit.target)} '
               '${unitWord(habit)}',
           warn: false,
         );
       case HabitKind.timer:
         return (
-          text: '${Fmt.duration(liveSeconds(habit))} of '
+          text:
+              '${Fmt.duration(liveSeconds(habit))} of '
               '${Fmt.minutes(habit.target)}',
           warn: false,
         );
@@ -259,10 +330,7 @@ class HabitStore extends ChangeNotifier {
         if (isDone(habit)) return (text: 'Done today', warn: false);
         final streak = streakOf(habit);
         if (streak > 0) {
-          return (
-            text: '$streak-day streak',
-            warn: false,
-          );
+          return (text: '$streak-day streak', warn: false);
         }
         if (isBroken(habit)) {
           return (text: 'Streak broken yesterday', warn: true);
@@ -273,7 +341,7 @@ class HabitStore extends ChangeNotifier {
 
   /// "3/8", "1h 20m", "Done" or "Tap" on routine step rows.
   String shortValue(Habit habit) => switch (habit.kind) {
-    HabitKind.count => '${habit.count}/${habit.target}',
+    HabitKind.count => '${Fmt.count(habit.count)}/${Fmt.count(habit.target)}',
     HabitKind.timer => Fmt.duration(liveSeconds(habit)),
     HabitKind.check => isDone(habit) ? 'Done' : 'Tap',
   };
@@ -287,8 +355,7 @@ class HabitStore extends ChangeNotifier {
 
   /// "8 glasses a day" / "45 minutes a day".
   String targetLine(Habit habit) => switch (habit.kind) {
-    HabitKind.count =>
-      '${Fmt.count(habit.target)} ${unitWord(habit)} a day',
+    HabitKind.count => '${Fmt.count(habit.target)} ${unitWord(habit)} a day',
     HabitKind.timer => '${habit.target} minutes a day',
     HabitKind.check => 'Once a day',
   };
@@ -332,23 +399,28 @@ class HabitStore extends ChangeNotifier {
   void increment(Habit habit) {
     if (habit.kind != HabitKind.count) return;
     _ensureDay();
-    habit.count = min(habit.target, habit.count + habit.step);
+    habit.count = _round(
+      min(habit.target.toDouble(), habit.count + habit.step),
+    );
     _commit();
   }
 
   void decrement(Habit habit) {
     if (habit.kind != HabitKind.count) return;
     _ensureDay();
-    habit.count = max(0, habit.count - habit.step);
+    habit.count = _round(max(0, habit.count - habit.step));
     _commit();
   }
 
-  void setCount(Habit habit, int next) {
+  void setCount(Habit habit, double next) {
     if (habit.kind != HabitKind.count) return;
     _ensureDay();
-    habit.count = next.clamp(0, habit.target);
+    habit.count = _round(next.clamp(0, habit.target.toDouble()));
     _commit();
   }
+
+  /// Keeps repeated fractional steps from drifting (0.1 + 0.2 problems).
+  static double _round(double value) => (value * 1000).roundToDouble() / 1000;
 
   /// Marks a habit done/not done from the routine runner, which has to work
   /// for every kind.
@@ -358,7 +430,7 @@ class HabitStore extends ChangeNotifier {
       case HabitKind.check:
         habit.checked = done;
       case HabitKind.count:
-        habit.count = done ? habit.target : 0;
+        habit.count = done ? habit.target.toDouble() : 0;
       case HabitKind.timer:
         habit.seconds = done ? max(habit.seconds, habit.target * 60) : 0;
         if (runningHabitId == habit.id) {
@@ -431,7 +503,9 @@ class HabitStore extends ChangeNotifier {
     final habit = habitById(id);
     if (habit == null) return;
     final elapsed = DateTime.now().difference(startedAt).inSeconds;
-    habit.seconds = (_timerBaseSeconds + max(0, elapsed)).clamp(0, 86400).toInt();
+    habit.seconds = (_timerBaseSeconds + max(0, elapsed))
+        .clamp(0, 86400)
+        .toInt();
   }
 
   void resetRoutine(Routine routine) {
@@ -475,7 +549,9 @@ class HabitStore extends ChangeNotifier {
     String badgeFg = '#FAF9F5',
     String badgeStart = '#C96442',
     String badgeEnd = '#A94E2E',
-    int step = 1,
+    double step = 1,
+    int? reminderMinutes,
+    bool blockDistractions = true,
   }) {
     _ensureDay();
     final habit = Habit(
@@ -494,12 +570,18 @@ class HabitStore extends ChangeNotifier {
       badgeFg: badgeFg,
       badgeStart: badgeStart,
       badgeEnd: badgeEnd,
-      step: step.clamp(1, 100000),
+      step: _clampStep(step, target),
+      reminderMinutes: reminderMinutes,
+      blockDistractions: blockDistractions,
     );
     habits = [...habits, habit];
     _commit();
+    _syncReminders();
     return habit;
   }
+
+  static double _clampStep(double step, int target) =>
+      _round(step.clamp(0.01, max(0.01, target.toDouble())));
 
   Habit? addIdeaHabit(HabitIdea idea) {
     final exists = habits.any(
@@ -529,7 +611,10 @@ class HabitStore extends ChangeNotifier {
     String? badgeFg,
     String? badgeStart,
     String? badgeEnd,
-    int? step,
+    double? step,
+    int? reminderMinutes,
+    bool updateReminder = false,
+    bool? blockDistractions,
   }) {
     _ensureDay();
     final kindChanged = habit.kind != kind;
@@ -548,7 +633,13 @@ class HabitStore extends ChangeNotifier {
     if (badgeFg != null) habit.badgeFg = badgeFg;
     if (badgeStart != null) habit.badgeStart = badgeStart;
     if (badgeEnd != null) habit.badgeEnd = badgeEnd;
-    if (step != null) habit.step = step.clamp(1, 100000);
+    if (step != null) habit.step = _clampStep(step, habit.target);
+    if (updateReminder) {
+      habit.reminderMinutes = reminderMinutes?.clamp(0, 1439);
+    }
+    if (blockDistractions != null) {
+      habit.blockDistractions = blockDistractions;
+    }
     if (kindChanged) {
       habit
         ..checked = false
@@ -560,8 +651,9 @@ class HabitStore extends ChangeNotifier {
         _timerBaseSeconds = 0;
       }
     }
-    if (habit.count > habit.target) habit.count = habit.target;
+    if (habit.count > habit.target) habit.count = habit.target.toDouble();
     _commit();
+    _syncReminders();
   }
 
   void deleteHabit(Habit habit) {
@@ -573,7 +665,9 @@ class HabitStore extends ChangeNotifier {
           entry.key: entry.value.where((id) => id != habit.id).toSet(),
     };
     for (final routine in routines) {
-      routine.habitIds = routine.habitIds.where((id) => id != habit.id).toList();
+      routine.habitIds = routine.habitIds
+          .where((id) => id != habit.id)
+          .toList();
     }
     if (runningHabitId == habit.id) {
       runningHabitId = null;
@@ -581,6 +675,7 @@ class HabitStore extends ChangeNotifier {
       _timerBaseSeconds = 0;
     }
     _commit();
+    _syncReminders();
   }
 
   // -------------------------------------------------------------- routines
@@ -626,9 +721,11 @@ class HabitStore extends ChangeNotifier {
         (habit) => habit.name.toLowerCase() == idea.name.toLowerCase(),
       );
       if (exists) {
-        created[idea.key] = habits.firstWhere(
-          (habit) => habit.name.toLowerCase() == idea.name.toLowerCase(),
-        ).id;
+        created[idea.key] = habits
+            .firstWhere(
+              (habit) => habit.name.toLowerCase() == idea.name.toLowerCase(),
+            )
+            .id;
         continue;
       }
       final habit = Habit(
@@ -665,10 +762,19 @@ class HabitStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setProfileName(String name) {
+  void setProfile({
+    required String name,
+    required String bio,
+    required String photo,
+  }) {
     profileName = name.trim();
+    profileBio = bio.trim();
+    profilePhoto = photo;
     _commit();
   }
+
+  void setProfileName(String name) =>
+      setProfile(name: name, bio: profileBio, photo: profilePhoto);
 
   // -------------------------------------------------------------- settings
 
@@ -692,21 +798,20 @@ class HabitStore extends ChangeNotifier {
     ThemeMode.system => 'System',
   };
 
-  void setReminders(bool value) {
-    remindersOn = value;
-    _commit();
-  }
-
-  void setReminderTime(int hour, int minute) {
-    reminderHour = hour % 24;
-    reminderMinute = minute % 60;
-    _commit();
-  }
-
   void setWeekStartsMonday(bool value) {
     weekStartsMonday = value;
     _commit();
   }
+
+  void setClock24(bool value) {
+    clock24 = value;
+    _commit();
+  }
+
+  String get clockLabel => clock24 ? '24-hour' : '12-hour';
+
+  /// A reminder time in the format the profile asks for.
+  String formatTime(int minutes) => Fmt.clockLabel(minutes, clock24: clock24);
 
   void toggleBlockedApp(String packageName) {
     if (!blockedApps.remove(packageName)) blockedApps.add(packageName);
@@ -728,6 +833,7 @@ class HabitStore extends ChangeNotifier {
     _timerBaseSeconds = 0;
     _dayKey = todayKey;
     _save();
+    _syncReminders();
     notifyListeners();
   }
 
@@ -737,19 +843,68 @@ class HabitStore extends ChangeNotifier {
     routines = [];
     history = {};
     themeMode = ThemeMode.system;
-    remindersOn = true;
-    reminderHour = 8;
-    reminderMinute = 0;
     weekStartsMonday = true;
+    clock24 = true;
     blockedApps = {};
     profileName = '';
+    profileBio = '';
+    profilePhoto = '';
     onboarded = false;
     runningHabitId = null;
     _timerStartedAt = null;
     _timerBaseSeconds = 0;
     _dayKey = todayKey;
     _save();
+    _syncReminders();
     notifyListeners();
+  }
+
+  // ---------------------------------------------------------- export/import
+
+  /// A complete, human-readable backup of this device's state.
+  String exportJson() => const JsonEncoder.withIndent('  ').convert({
+    'app': 'accrue',
+    'format': 2,
+    'exportedAt': DateTime.now().toIso8601String(),
+    'state': _toJson(),
+  });
+
+  /// Replaces the whole store from a backup produced by [exportJson] (or a
+  /// bare state object). Nothing is touched when the file cannot be read.
+  ImportResult importJson(String raw) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } catch (_) {
+      return ImportResult.fail('That file is not valid JSON.');
+    }
+    if (decoded is! Map) {
+      return ImportResult.fail('That file is not an Accrue backup.');
+    }
+    final root = Map<String, Object?>.from(decoded);
+    final state = root['state'] is Map
+        ? Map<String, Object?>.from(root['state'] as Map)
+        : root;
+    if (state['habits'] is! List) {
+      return ImportResult.fail(
+        'That file does not look like an Accrue backup.',
+      );
+    }
+    try {
+      _loadState(state);
+    } catch (_) {
+      return ImportResult.fail('That backup could not be read.');
+    }
+    _save();
+    _syncReminders();
+    notifyListeners();
+    return ImportResult.ok(
+      habits.isEmpty
+          ? 'Backup imported. It has no habits.'
+          : 'Imported ${habits.length} '
+                '${habits.length == 1 ? 'habit' : 'habits'} and '
+                '${history.length} ${history.length == 1 ? 'day' : 'days'}.',
+    );
   }
 
   // ------------------------------------------------------------ persistence
@@ -770,16 +925,16 @@ class HabitStore extends ChangeNotifier {
     'routines': routines.map((routine) => routine.toJson()).toList(),
     'history': history.map((key, ids) => MapEntry(key, ids.toList())),
     'themeMode': themeMode.name,
-    'remindersOn': remindersOn,
-    'reminderHour': reminderHour,
-    'reminderMinute': reminderMinute,
     'weekStartsMonday': weekStartsMonday,
+    'clock24': clock24,
     'blockedApps': blockedApps.toList(),
     'runningHabitId': runningHabitId,
     'timerBaseSeconds': _timerBaseSeconds,
     'timerStartedAt': _timerStartedAt?.toIso8601String(),
     'dayKey': _dayKey,
     'profileName': profileName,
+    'profileBio': profileBio,
+    'profilePhoto': profilePhoto,
     'onboarded': onboarded,
   };
 
@@ -803,7 +958,12 @@ class HabitStore extends ChangeNotifier {
       return;
     }
 
-    final json = Map<String, Object?>.from(decoded);
+    _loadState(Map<String, Object?>.from(decoded));
+  }
+
+  /// Applies a decoded state object. Used by restore and by import, so the two
+  /// cannot drift apart.
+  void _loadState(Map<String, Object?> json) {
     _dayKey = (json['dayKey'] as String?) ?? todayKey;
     habits = _parseList(json['habits'], Habit.fromJson);
     routines = _parseList(json['routines'], Routine.fromJson);
@@ -814,28 +974,35 @@ class HabitStore extends ChangeNotifier {
     for (final routine in routines) {
       routine.habitIds = routine.habitIds.where(known.contains).toList();
     }
-    routines = routines.where((routine) => routine.habitIds.isNotEmpty).toList();
+    routines = routines
+        .where((routine) => routine.habitIds.isNotEmpty)
+        .toList();
 
     themeMode = ThemeMode.values.firstWhere(
       (mode) => mode.name == json['themeMode'],
       orElse: () => ThemeMode.system,
     );
-    remindersOn = (json['remindersOn'] as bool?) ?? true;
-    reminderHour = (json['reminderHour'] as num?)?.toInt() ?? 8;
-    reminderMinute = (json['reminderMinute'] as num?)?.toInt() ?? 0;
     weekStartsMonday = (json['weekStartsMonday'] as bool?) ?? true;
+    clock24 = (json['clock24'] as bool?) ?? true;
     final blocked = json['blockedApps'];
-    if (blocked is List) {
-      blockedApps = blocked.whereType<String>().toSet();
-    }
+    blockedApps = blocked is List
+        ? blocked.whereType<String>().toSet()
+        : <String>{};
     profileName = (json['profileName'] as String?) ?? '';
+    profileBio = (json['profileBio'] as String?) ?? '';
+    profilePhoto = (json['profilePhoto'] as String?) ?? '';
     onboarded = (json['onboarded'] as bool?) ?? false;
 
+    runningHabitId = null;
+    _timerStartedAt = null;
+    _timerBaseSeconds = 0;
     final runningId = json['runningHabitId'] as String?;
     final startedAt = DateTime.tryParse(
       (json['timerStartedAt'] as String?) ?? '',
     );
-    if (runningId != null && habitById(runningId) != null && startedAt != null) {
+    if (runningId != null &&
+        habitById(runningId) != null &&
+        startedAt != null) {
       runningHabitId = runningId;
       _timerStartedAt = startedAt;
       _timerBaseSeconds = (json['timerBaseSeconds'] as num?)?.toInt() ?? 0;
@@ -843,6 +1010,10 @@ class HabitStore extends ChangeNotifier {
 
     if (_dayKey != todayKey) _rollover();
     _applyElapsed();
+  }
+
+  void _syncReminders() {
+    unawaited(ReminderScheduler.sync(habits));
   }
 
   /// One unreadable row must not cost the rest of the store, so rows are
@@ -906,4 +1077,16 @@ class HabitStore extends ChangeNotifier {
     _rollover();
     notifyListeners();
   }
+}
+
+/// Outcome of [HabitStore.importJson].
+class ImportResult {
+  const ImportResult._({required this.ok, required this.message});
+
+  const ImportResult.fail(String message) : this._(ok: false, message: message);
+
+  const ImportResult.ok(String message) : this._(ok: true, message: message);
+
+  final bool ok;
+  final String message;
 }

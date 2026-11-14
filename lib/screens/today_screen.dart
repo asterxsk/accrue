@@ -7,95 +7,16 @@ import '../theme/app_type.dart';
 import '../util/format.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/habit_row.dart';
-import '../widgets/popup_menu.dart';
-import '../widgets/routine_cards.dart';
 import '../widgets/ui.dart';
+import 'check_detail_screen.dart';
 import 'counter_detail_screen.dart';
 import 'new_habit_screen.dart';
-import 'routine_run_screen.dart';
 import 'timer_screen.dart';
 
 class TodayScreen extends StatelessWidget {
   const TodayScreen({super.key, required this.store});
 
   final HabitStore store;
-
-  Future<void> _habitMenu(
-    BuildContext context,
-    Habit habit,
-    BuildContext anchor,
-  ) {
-    return showActionMenu(context, anchor, [
-      AppMenuItem(
-        label: 'Edit habit',
-        icon: 'pencil',
-        onSelected: () => openHabitForm(context, store, habit: habit),
-      ),
-      AppMenuItem(
-        label: 'Delete habit',
-        icon: 'trash',
-        danger: true,
-        onSelected: () async {
-          final confirmed = await confirmDialog(
-            context,
-            title: 'Delete ${habit.name}?',
-            body:
-                'The habit and every day it was recorded are removed from '
-                'this device. Streaks and Insights recalculate. This cannot be '
-                'undone.',
-            confirmLabel: 'Delete habit',
-            danger: true,
-          );
-          if (confirmed) store.deleteHabit(habit);
-        },
-      ),
-    ]);
-  }
-
-  Future<void> _routineMenu(
-    BuildContext context,
-    Routine routine,
-    BuildContext anchor,
-  ) {
-    return showActionMenu(context, anchor, [
-      AppMenuItem(
-        label: 'Open routine',
-        icon: 'layers',
-        onSelected: () => openRoutineRun(context, store, routine),
-      ),
-      AppMenuItem(
-        label: 'Edit habits',
-        icon: 'pencil',
-        onSelected: () async {
-          final edit = await routineEditorDialog(
-            context,
-            store,
-            routine: routine,
-          );
-          if (edit != null) {
-            store.updateRoutine(routine, edit.name, edit.habitIds);
-          }
-        },
-      ),
-      AppMenuItem(
-        label: 'Delete routine',
-        icon: 'trash',
-        danger: true,
-        onSelected: () async {
-          final confirmed = await confirmDialog(
-            context,
-            title: 'Delete ${routine.name}?',
-            body:
-                "The routine, its steps and today's progress are removed from "
-                'this device. This cannot be undone.',
-            confirmLabel: 'Delete routine',
-            danger: true,
-          );
-          if (confirmed) store.deleteRoutine(routine);
-        },
-      ),
-    ]);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,30 +50,21 @@ class TodayScreen extends StatelessWidget {
                   HabitRow(
                     store: store,
                     habit: habit,
-                    onOpenCounter: () =>
-                        openCounter(context, store, habit),
-                    onOpenTimer: () => openTimer(context, store, habit),
-                    onMenu: (anchor) => _habitMenu(context, habit, anchor),
+                    onOpen: () {
+                      switch (habit.kind) {
+                        case HabitKind.check:
+                          openCheckDetail(context, store, habit);
+                        case HabitKind.count:
+                          openCounter(context, store, habit);
+                        case HabitKind.timer:
+                          openTimer(context, store, habit);
+                      }
+                    },
                   ),
                 DashedNewRow(
                   label: 'New habit',
                   onTap: () => openHabitForm(context, store),
                 ),
-                if (store.routines.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(top: 26),
-                    child: SectionTitle('Routines'),
-                  ),
-                  const SizedBox(height: 10),
-                  for (final routine in store.routines)
-                    RoutineCard(
-                      store: store,
-                      routine: routine,
-                      onOpen: () => openRoutineRun(context, store, routine),
-                      onMenu: (anchor) =>
-                          _routineMenu(context, routine, anchor),
-                    ),
-                ],
               ],
             ],
           ),

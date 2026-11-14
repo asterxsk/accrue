@@ -11,12 +11,16 @@ class AppMenuItem {
     required this.icon,
     required this.onSelected,
     this.danger = false,
+    this.selected = false,
   });
 
   final String label;
   final String icon;
   final VoidCallback onSelected;
   final bool danger;
+
+  /// Shows a check on the option the setting currently holds.
+  final bool selected;
 }
 
 /// An anchored options panel (the prototype's popup menu).
@@ -79,7 +83,7 @@ double _menuWidth(BuildContext context, List<AppMenuItem> items) {
     )..layout();
     if (painter.width > widest) widest = painter.width;
   }
-  return (widest + 18 + 10 + 24 + 12).clamp(168.0, 300.0);
+  return (widest + 18 + 10 + 24 + 12 + 22).clamp(180.0, 320.0);
 }
 
 class _MenuLayout extends SingleChildLayoutDelegate {
@@ -161,14 +165,24 @@ class _MenuPanel extends StatelessWidget {
                             color: item.danger ? colors.danger : colors.muted,
                           ),
                           const SizedBox(width: 10),
-                          Text(
-                            item.label,
-                            style: AppType.button.copyWith(
-                              color: item.danger
-                                  ? colors.danger
-                                  : colors.text,
+                          Expanded(
+                            child: Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppType.button.copyWith(
+                                color: item.danger
+                                    ? colors.danger
+                                    : item.selected
+                                    ? colors.accentInk
+                                    : colors.text,
+                              ),
                             ),
                           ),
+                          if (item.selected) ...[
+                            const SizedBox(width: 10),
+                            AppIcon('check', size: 16, color: colors.accent),
+                          ],
                         ],
                       ),
                     ),

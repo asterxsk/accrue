@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app_nav.dart';
 import '../models/habit.dart';
@@ -6,11 +9,11 @@ import '../state/habit_store.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_type.dart';
 import '../theme/metrics.dart';
+import '../util/format.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/habit_mark.dart';
 import '../widgets/ui.dart';
 import 'icon_picker_screen.dart';
-
 
 Future<void> openHabitForm(
   BuildContext context,
@@ -49,7 +52,9 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
   late HabitKind _kind;
   late String _icon;
   late int _target;
-  late int _step;
+  late double _step;
+  late int? _reminderMinutes;
+  late bool _blockDistractions;
   late bool _badge;
   late String _badgeText;
   late String _badgeFg;
@@ -71,6 +76,8 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
     _icon = habit?.icon ?? _kind.defaultIcon;
     _target = habit?.target ?? 1;
     _step = habit?.step ?? 1;
+    _reminderMinutes = habit?.reminderMinutes;
+    _blockDistractions = habit?.blockDistractions ?? true;
     _badge = habit?.badge ?? false;
     _badgeText = habit?.badgeText ?? '';
     _badgeFg = habit?.badgeFg ?? '#FAF9F5';
@@ -102,6 +109,7 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
         HabitKind.timer => 30,
         HabitKind.count => 8,
       };
+      if (_step > _target) _step = _target.toDouble();
     });
   }
 
@@ -117,21 +125,36 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
     final next = _target + direction * _targetStride;
     setState(() {
       _target = next.clamp(1, 100000);
-      if (_step > _target) _step = _target;
+      if (_step > _target) _step = _target.toDouble();
     });
   }
 
-  /// Same idea for the per-tap increment: step by 1, then 10, then 100 so a
-  /// 250-step increment is a few taps away rather than 250.
-  int get _stepStride {
-    if (_step >= 100) return 100;
-    if (_step >= 10) return 10;
-    return 1;
+  /// Presets cover the common cases; anything else is a typed "Custom" value.
+  static const List<String> _stepPresets = ['0.5', '1', '5', '10'];
+
+  String get _stepLabel {
+    for (final preset in _stepPresets) {
+      if (double.parse(preset) == _step) return preset;
+    }
+    return 'Custom';
   }
 
-  void _bumpStep(int direction) {
-    final next = _step + direction * _stepStride;
-    setState(() => _step = next.clamp(1, _target));
+  void _selectStep(String label) {
+    if (label == 'Custom') {
+      unawaited(_typeStep());
+      return;
+    }
+    final next = double.parse(label);
+    setState(() => _step = next.clamp(0.05, _target.toDouble()).toDouble());
+  }
+
+  String get _stepCopy {
+    final unit = _unit.text.trim().isEmpty ? 'times' : _unit.text.trim();
+    if (_step < 1) return 'One tap logs ${Fmt.count(_step)} $unit.';
+    if (_step > 1) {
+      return 'One + logs ${Fmt.count(_step)} $unit — handy for steps.';
+    }
+    return 'One tap, one unit.';
   }
 
   Future<void> _typeTarget() async {
@@ -148,23 +171,18 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
     if (value == null || !mounted) return;
     setState(() {
       _target = value;
-      if (_step > _target) _step = _target;
+      if (_step > _target) _step = _target.toDouble();
     });
   }
 
   Future<void> _typeStep() async {
-    final value = await numberDialog(
+    final value = await _decimalStepDialog(
       context,
-      title: 'Each tap adds',
-      description: 'How much one tap logs.',
       initial: _step,
-      buttonLabel: 'Set increment',
-      min: 1,
       max: _target,
-      hint: 'Up to $_target — it cannot add more than the whole target.',
     );
     if (value == null || !mounted) return;
-    setState(() => _step = value);
+    setState(() => _step = value.clamp(0.05, _target.toDouble()).toDouble());
   }
 
   Future<void> _pickMark() async {
@@ -208,6 +226,8 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
         badgeStart: _badgeStart,
         badgeEnd: _badgeEnd,
         step: _step,
+        reminderMinutes: _reminderMinutes,
+        blockDistractions: _blockDistractions,
       );
       Navigator.of(context).pop();
       return;
@@ -226,11 +246,15 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
       badgeStart: _badgeStart,
       badgeEnd: _badgeEnd,
       step: _step,
+      reminderMinutes: _reminderMinutes,
+      updateReminder: true,
+      blockDistractions: _blockDistractions,
     );
     if (!mounted) return;
     if (widget.fromDetail && kindChanged) {
+      final nav = AppNavScope.of(context);
       Navigator.of(context).popUntil((route) => route.isFirst);
-      AppNavScope.of(context).select(0);
+      nav.select(0);
     } else {
       Navigator.of(context).pop();
     }
@@ -241,7 +265,7 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
     if (habit == null) return;
     final confirmed = await confirmDialog(
       context,
-      title: 'Delete ${habit.name}?',
+      title: 'Delete the habit "${habit.name}"?',
       body:
           'The habit and every day it was recorded are removed from this '
           'device. Streaks and Insights recalculate. This cannot be undone.',
@@ -249,9 +273,10 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
       danger: true,
     );
     if (!confirmed || !mounted) return;
+    final nav = AppNavScope.of(context);
     widget.store.deleteHabit(habit);
     Navigator.of(context).popUntil((route) => route.isFirst);
-    AppNavScope.of(context).select(0);
+    nav.select(0);
   }
 
   @override
@@ -452,57 +477,104 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            border: Border(
-                              top: BorderSide(color: colors.line),
-                            ),
+                            border: Border(top: BorderSide(color: colors.line)),
                           ),
-                          child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Each tap adds',
-                                      style: AppType.bodyStrong.copyWith(
-                                        color: colors.text,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _step > 1
-                                          ? 'One + logs $_step ${_unit.text.trim().isEmpty ? 'times' : _unit.text.trim()} — handy for steps.'
-                                          : 'One tap, one unit.',
-                                      style: AppType.meta.copyWith(
-                                        color: colors.muted,
-                                      ),
-                                    ),
-                                  ],
+                              Text(
+                                'Each tap adds',
+                                style: AppType.bodyStrong.copyWith(
+                                  color: colors.text,
                                 ),
                               ),
-                              const SizedBox(width: 16),
-                              TargetStepper(
-                                value: _step,
-                                label: 'increment',
-                                onTapValue: _typeStep,
-                                onMinus: _step <= 1
-                                    ? null
-                                    : () => _bumpStep(-1),
-                                onPlus: _step >= _target
-                                    ? null
-                                    : () => _bumpStep(1),
+                              const SizedBox(height: 2),
+                              Text(
+                                _stepCopy,
+                                style: AppType.meta.copyWith(
+                                  color: colors.muted,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SegmentedToggle(
+                                options: [
+                                  for (final preset in _stepPresets) preset,
+                                  if (_stepLabel == 'Custom') 'Custom',
+                                ],
+                                selected: _stepLabel,
+                                onChanged: _selectStep,
                               ),
                             ],
                           ),
                         ),
                       ],
                     ],
-                    const SizedBox(height: 26),
+                    SectionTitle(
+                      'Reminder',
+                      margin: const EdgeInsets.only(top: 26),
+                    ),
+                    const SizedBox(height: 4),
+                    SettingsRow(
+                      label: 'Remind me',
+                      showChevron: false,
+                      trailing: AppSwitch(
+                        value: _reminderMinutes != null,
+                        onChanged: (on) => setState(
+                          () => _reminderMinutes = on
+                              ? (_reminderMinutes ?? 8 * 60)
+                              : null,
+                        ),
+                      ),
+                    ),
+                    if (_reminderMinutes != null)
+                      SettingsRow(
+                        label: 'Time',
+                        value: widget.store.formatTime(_reminderMinutes!),
+                        onTap: () async {
+                          final picked = await timeDialog(
+                            context,
+                            hour: _reminderMinutes! ~/ 60,
+                            minute: _reminderMinutes! % 60,
+                            clock24: widget.store.clock24,
+                          );
+                          if (picked == null || !mounted) return;
+                          setState(
+                            () => _reminderMinutes =
+                                picked.hour * 60 + picked.minute,
+                          );
+                        },
+                      ),
+                    const SizedBox(height: 8),
                     Text(
-                      'Reminders are stored as intent only — this build does '
-                      'not deliver notifications.',
+                      'A daily notification at this time. On Android, allow '
+                      'notifications when asked; the reminder is saved even if '
+                      'notifications are off.',
                       style: AppType.micro.copyWith(color: colors.faint),
                     ),
+                    if (_kind == HabitKind.timer) ...[
+                      SectionTitle(
+                        'Focus',
+                        margin: const EdgeInsets.only(top: 26),
+                      ),
+                      const SizedBox(height: 4),
+                      SettingsRow(
+                        label: 'Block distracting apps',
+                        value: _blockDistractions ? 'On' : 'Off',
+                        showChevron: false,
+                        trailing: AppSwitch(
+                          value: _blockDistractions,
+                          onChanged: (on) =>
+                              setState(() => _blockDistractions = on),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'While this timer runs on Android, the apps you '
+                        'flagged stay covered. Turn it off for runs, swims and '
+                        'anything away from the phone.',
+                        style: AppType.micro.copyWith(color: colors.faint),
+                      ),
+                    ],
                     if (_editing) ...[
                       const SizedBox(height: 22),
                       TextButton(
@@ -547,3 +619,137 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
     );
   }
 }
+
+/// Decimal entry for an increment the presets do not cover.
+Future<double?> _decimalStepDialog(
+  BuildContext context, {
+  required double initial,
+  required int max,
+}) {
+  return showDialog<double>(
+    context: context,
+    barrierColor: AppColors.of(context).scrim,
+    builder: (_) => _DecimalStepDialog(initial: initial, max: max),
+  );
+}
+
+class _DecimalStepDialog extends StatefulWidget {
+  const _DecimalStepDialog({required this.initial, required this.max});
+
+  final double initial;
+  final int max;
+
+  @override
+  State<_DecimalStepDialog> createState() => _DecimalStepDialogState();
+}
+
+class _DecimalStepDialogState extends State<_DecimalStepDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: _plainNumber(widget.initial),
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double? get _value {
+    final parsed = double.tryParse(_controller.text.trim());
+    if (parsed == null) return null;
+    return parsed.clamp(0.05, widget.max.toDouble()).toDouble();
+  }
+
+  void _submit() {
+    final value = _value;
+    if (value == null) return;
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: SizedBox(
+        width: 340,
+        child: Material(
+          color: colors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Metrics.rLg),
+            side: BorderSide(color: colors.line),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Each tap adds',
+                  style: AppType.dialogTitle.copyWith(color: colors.text),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'How much one tap logs. Halves are fine — 0.5 for half a '
+                  'glass.',
+                  style: AppType.meta.copyWith(
+                    fontSize: 14,
+                    height: 1.55,
+                    color: colors.muted,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                AppTextField(
+                  controller: _controller,
+                  maxLength: 8,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _submit(),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Between 0.05 and ${Fmt.count(widget.max)}.',
+                  style: AppType.micro.copyWith(color: colors.faint),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    AppButton(
+                      label: 'Cancel',
+                      tone: AppButtonTone.secondary,
+                      expand: false,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: 8),
+                    AppButton(
+                      label: 'Set increment',
+                      expand: false,
+                      onPressed: _value == null ? null : _submit,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "2.5" for halves, "250" for whole numbers — a TextField should not get
+/// thousands separators it cannot parse back.
+String _plainNumber(double value) => value == value.roundToDouble()
+    ? value.toStringAsFixed(0)
+    : value.toString();

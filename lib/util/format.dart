@@ -77,19 +77,38 @@ class Fmt {
     return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  /// "08:00" — the reminder time.
+  /// "08:00" — a reminder time.
   static String time(int hour, int minute) =>
       '${hour.toString().padLeft(2, '0')}:'
       '${minute.toString().padLeft(2, '0')}';
 
-  /// "8,000"
-  static String count(int value) {
-    final digits = value.abs().toString();
-    final buffer = StringBuffer(value < 0 ? '-' : '');
-    for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
-      buffer.write(digits[i]);
+  /// "16:30" — a reminder stored as minutes after midnight.
+  static String minuteOfDay(int minutes) =>
+      time((minutes ~/ 60) % 24, minutes % 60);
+
+  /// "16:30" or "4:30 PM", depending on the profile's clock setting.
+  static String clockLabel(int minutes, {bool clock24 = true}) {
+    final hour = (minutes ~/ 60) % 24;
+    final minute = minutes % 60;
+    if (clock24) return time(hour, minute);
+    final hour12 = hour % 12 == 0 ? 12 : hour % 12;
+    return '$hour12:${minute.toString().padLeft(2, '0')} '
+        '${hour < 12 ? 'AM' : 'PM'}';
+  }
+
+  /// "8,000", "2.5" — one decimal at most, trailing ".0" dropped.
+  static String count(num value) {
+    final negative = value < 0;
+    final fixed = value.abs().toStringAsFixed(1);
+    final parts = fixed.split('.');
+    final whole = parts.first;
+    final decimal = parts.last;
+    final buffer = StringBuffer(negative ? '-' : '');
+    for (var i = 0; i < whole.length; i++) {
+      if (i > 0 && (whole.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(whole[i]);
     }
+    if (decimal != '0') buffer.write('.$decimal');
     return buffer.toString();
   }
 

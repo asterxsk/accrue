@@ -50,6 +50,8 @@ class Habit {
     this.badgeStart = '#C96442',
     this.badgeEnd = '#A94E2E',
     this.step = 1,
+    this.reminderMinutes,
+    this.blockDistractions = true,
   });
 
   final String id;
@@ -67,8 +69,8 @@ class Habit {
   /// Unit for count habits, e.g. "glasses". Empty means "times".
   String unit;
 
-  /// Today's counted units.
-  int count;
+  /// Today's counted units. Fractional so a bottle can be 2.5.
+  double count;
 
   /// Today's logged seconds.
   int seconds;
@@ -88,9 +90,17 @@ class Habit {
   String badgeEnd;
 
   /// How much one tap of + or − moves a counted habit (steps rarely go 1 by 1).
-  int step;
+  double step;
+
+  /// Daily reminder as minutes after midnight, or null when off.
+  int? reminderMinutes;
+
+  /// Timer habits only: draw the focus overlay over distracting apps.
+  bool blockDistractions;
 
   bool get isTimer => kind == HabitKind.timer;
+
+  bool get reminderOn => reminderMinutes != null;
 
   Map<String, Object?> toJson() => {
     'id': id,
@@ -108,6 +118,8 @@ class Habit {
     'badgeStart': badgeStart,
     'badgeEnd': badgeEnd,
     'step': step,
+    'reminderMinutes': reminderMinutes,
+    'blockDistractions': blockDistractions,
   };
 
   static Habit fromJson(Map<String, Object?> json) => Habit(
@@ -117,7 +129,7 @@ class Habit {
     icon: (json['icon'] as String?) ?? 'check',
     target: (json['target'] as num?)?.toInt() ?? 1,
     unit: (json['unit'] as String?) ?? '',
-    count: (json['count'] as num?)?.toInt() ?? 0,
+    count: (json['count'] as num?)?.toDouble() ?? 0,
     seconds: (json['seconds'] as num?)?.toInt() ?? 0,
     checked: (json['checked'] as bool?) ?? false,
     badge: (json['badge'] as bool?) ?? false,
@@ -125,7 +137,12 @@ class Habit {
     badgeFg: (json['badgeFg'] as String?) ?? '#FAF9F5',
     badgeStart: (json['badgeStart'] as String?) ?? '#C96442',
     badgeEnd: (json['badgeEnd'] as String?) ?? '#A94E2E',
-    step: ((json['step'] as num?)?.toInt() ?? 1).clamp(1, 100000),
+    step: ((json['step'] as num?)?.toDouble() ?? 1).clamp(0.01, 100000),
+    reminderMinutes: ((json['reminderMinutes'] as num?)?.toInt())?.clamp(
+      0,
+      1439,
+    ),
+    blockDistractions: (json['blockDistractions'] as bool?) ?? true,
   );
 }
 

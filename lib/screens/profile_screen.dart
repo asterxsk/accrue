@@ -1,39 +1,22 @@
 import 'package:flutter/material.dart';
 
-import '../app_nav.dart';
 import '../state/habit_store.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_type.dart';
 import '../theme/metrics.dart';
-import '../util/format.dart';
 import '../util/share.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/popup_menu.dart';
 import '../widgets/ui.dart';
 import 'about_screen.dart';
+import 'data_export_screen.dart';
 import 'distracting_apps_screen.dart';
+import 'edit_profile_screen.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.store});
 
   final HabitStore store;
-
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  /// Which inline select is open: 'appearance', 'week' or null.
-  String? _open;
-
-  HabitStore get store => widget.store;
-
-  String get _themeLabel => store.themeLabel;
-
-  String get _weekLabel => store.weekStartsMonday ? 'Monday' : 'Sunday';
-
-  void _toggle(String key) {
-    setState(() => _open = _open == key ? null : key);
-  }
 
   Future<void> _share(BuildContext context) async {
     final outcome = await shareDialog(context, store);
@@ -44,54 +27,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ..showSnackBar(const SnackBar(content: Text('Caption copied')));
   }
 
-  Future<void> _editName(BuildContext context) async {
-    final picked = await editProfileDialog(
-      context,
-      name: store.profileName,
-    );
-    if (picked != null) store.setProfileName(picked);
-  }
-
-  Future<void> _data(BuildContext context) async {
-    final choice = await dataDialog(context);
-    if (choice == null || !context.mounted) return;
-    switch (choice) {
-      case DataChoice.clearAll:
-        final confirmed = await confirmDialog(
-          context,
-          title: 'Clear habits & history?',
-          body:
-              'Habits, routines and their records are removed from this '
-              'device. Your profile and settings stay. This cannot be undone.',
-          confirmLabel: 'Clear all',
-          danger: true,
-        );
-        if (!confirmed) return;
-        store.clearAll();
-        if (context.mounted) AppNavScope.of(context).select(0);
-      case DataChoice.resetApp:
-        final confirmed = await confirmDialog(
-          context,
-          title: 'Reset the app?',
-          body:
-              'Habits, routines, history and your profile are removed, and '
-              'setup starts again from the beginning. This cannot be undone.',
-          confirmLabel: 'Reset app',
-          danger: true,
-        );
-        if (!confirmed) return;
-        store.resetApp();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final name = store.profileName.isEmpty ? 'You' : store.profileName;
 
     return ListenableBuilder(
       listenable: store,
       builder: (context, _) {
+        final name = store.profileName.isEmpty ? 'You' : store.profileName;
+        final bio = store.profileBio.isEmpty
+            ? 'Local profile · nothing syncs, nothing leaves.'
+            : store.profileBio;
+
         return SingleChildScrollView(
           padding: screenPadding(context, topLevel: true),
           child: Column(
@@ -103,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Avatar(name: name, size: 52),
+                    Avatar(name: name, size: 52, photo: store.profilePhoto),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -120,16 +67,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Local profile · nothing syncs, nothing leaves.',
-                            style: AppType.meta.copyWith(
-                              color: colors.muted,
-                            ),
+                            bio,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppType.meta.copyWith(color: colors.muted),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 10),
-                    _EditPill(onTap: () => _editName(context)),
+                    _EditPill(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => EditProfileScreen(store: store),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -142,54 +95,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 4),
               _GroupLabel('Appearance', colors: colors),
-              SettingsSelect(
-                label: 'Appearance',
-                options: const ['System', 'Light', 'Dark'],
-                selected: _themeLabel,
-                expanded: _open == 'appearance',
-                onToggle: () => _toggle('appearance'),
-                onSelected: (picked) {
-                  store.setThemeMode(switch (picked) {
-                    'Light' => ThemeMode.light,
-                    'Dark' => ThemeMode.dark,
-                    _ => ThemeMode.system,
-                  });
-                  _toggle('appearance');
-                },
-              ),
-              _GroupLabel('Reminders', colors: colors),
-              SettingsRow(
-                label: 'Reminders',
-                showChevron: false,
-                trailing: AppSwitch(
-                  value: store.remindersOn,
-                  onChanged: store.setReminders,
+              Builder(
+                builder: (rowContext) => SettingsRow(
+                  label: 'Appearance',
+                  value: store.themeLabel,
+                  onTap: () => showActionMenu(context, rowContext, [
+                    for (final (label, icon, mode) in const [
+                      ('System', 'monitor', ThemeMode.system),
+                      ('Light', 'sun', ThemeMode.light),
+                      ('Dark', 'moon', ThemeMode.dark),
+                    ])
+                      AppMenuItem(
+                        label: label,
+                        icon: icon,
+                        selected: store.themeLabel == label,
+                        onSelected: () => store.setThemeMode(mode),
+                      ),
+                  ]),
                 ),
               ),
-              SettingsRow(
-                label: 'Reminder time',
-                value: Fmt.time(store.reminderHour, store.reminderMinute),
-                onTap: () async {
-                  final picked = await timeDialog(
-                    context,
-                    hour: store.reminderHour,
-                    minute: store.reminderMinute,
-                  );
-                  if (picked != null) {
-                    store.setReminderTime(picked.hour, picked.minute);
-                  }
-                },
+              Builder(
+                builder: (rowContext) => SettingsRow(
+                  label: 'Start week on',
+                  value: store.weekStartsMonday ? 'Monday' : 'Sunday',
+                  onTap: () => showActionMenu(context, rowContext, [
+                    for (final (label, monday) in const [
+                      ('Monday', true),
+                      ('Sunday', false),
+                    ])
+                      AppMenuItem(
+                        label: label,
+                        icon: 'calendar',
+                        selected: store.weekStartsMonday == monday,
+                        onSelected: () => store.setWeekStartsMonday(monday),
+                      ),
+                  ]),
+                ),
               ),
-              SettingsSelect(
-                label: 'Start week on',
-                options: const ['Monday', 'Sunday'],
-                selected: _weekLabel,
-                expanded: _open == 'week',
-                onToggle: () => _toggle('week'),
-                onSelected: (picked) {
-                  store.setWeekStartsMonday(picked == 'Monday');
-                  _toggle('week');
-                },
+              Builder(
+                builder: (rowContext) => SettingsRow(
+                  label: 'Time format',
+                  value: store.clockLabel,
+                  onTap: () => showActionMenu(context, rowContext, [
+                    for (final (label, as24) in const [
+                      ('24-hour', true),
+                      ('12-hour', false),
+                    ])
+                      AppMenuItem(
+                        label: label,
+                        icon: 'clock',
+                        selected: store.clock24 == as24,
+                        onSelected: () => store.setClock24(as24),
+                      ),
+                  ]),
+                ),
               ),
               _GroupLabel('Focus', colors: colors),
               SettingsRow(
@@ -202,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _GroupLabel('Data', colors: colors),
               SettingsRow(
                 label: 'Data & export',
-                onTap: () => _data(context),
+                onTap: () => openDataExport(context, store),
               ),
               _GroupLabel('About', colors: colors),
               SettingsRow(
@@ -237,7 +196,7 @@ class _GroupLabel extends StatelessWidget {
   }
 }
 
-/// Small filled pill on the profile card, so renaming lives with the name.
+/// Small filled pill on the profile card, so editing lives with the profile.
 class _EditPill extends StatelessWidget {
   const _EditPill({required this.onTap});
 
@@ -248,7 +207,7 @@ class _EditPill extends StatelessWidget {
     final colors = AppColors.of(context);
     return Semantics(
       button: true,
-      label: 'Edit name',
+      label: 'Edit profile',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,

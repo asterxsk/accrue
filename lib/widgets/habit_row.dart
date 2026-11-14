@@ -7,7 +7,6 @@ import '../state/habit_store.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_type.dart';
 import '../theme/metrics.dart';
-import '../util/format.dart';
 import 'app_icon.dart';
 import 'habit_mark.dart';
 import 'ui.dart';
@@ -112,18 +111,14 @@ class HabitRow extends StatelessWidget {
     super.key,
     required this.store,
     required this.habit,
-    required this.onOpenCounter,
-    required this.onOpenTimer,
-    required this.onMenu,
+    required this.onOpen,
   });
 
   final HabitStore store;
   final Habit habit;
-  final VoidCallback onOpenCounter;
-  final VoidCallback onOpenTimer;
 
-  /// Called with the more button's context for menu anchoring.
-  final void Function(BuildContext) onMenu;
+  /// Opens the habit's full-screen page: counter, timer or check detail.
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -136,9 +131,9 @@ class HabitRow extends StatelessWidget {
         case HabitKind.check:
           store.toggleCheck(habit);
         case HabitKind.count:
-          onOpenCounter();
+          store.increment(habit);
         case HabitKind.timer:
-          onOpenTimer();
+          onOpen();
       }
     }
 
@@ -213,53 +208,13 @@ class HabitRow extends StatelessWidget {
                 ),
               ),
             ),
-            if (habit.kind == HabitKind.count) ...[
-              AppIconButton(
-                icon: 'minus',
-                size: 44,
-                iconSize: 16,
-                filled: true,
-                label: habit.step > 1
-                    ? '${habit.step} less ${habit.name}'
-                    : 'One less ${habit.name}',
-                onTap: habit.count <= 0 ? null : () => store.decrement(habit),
-              ),
-              SizedBox(
-                width: 56,
-                // Scaled, not clipped: "1,000" must not run over the buttons.
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    Fmt.count(habit.count),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    softWrap: false,
-                    style: AppType.count.copyWith(color: colors.text),
-                  ),
-                ),
-              ),
-              AppIconButton(
-                icon: 'plus',
-                size: 44,
-                iconSize: 16,
-                filled: true,
-                label: habit.step > 1
-                    ? '${habit.step} more ${habit.name}'
-                    : 'One more ${habit.name}',
-                onTap: habit.count >= habit.target
-                    ? null
-                    : () => store.increment(habit),
-              ),
-            ],
-            Builder(
-              builder: (menuContext) => AppIconButton(
-                icon: 'more',
-                size: 44,
-                iconSize: 18,
-                label: 'Options for ${habit.name}',
-                color: colors.faint,
-                onTap: () => onMenu(menuContext),
-              ),
+            AppIconButton(
+              icon: 'ellipsis-vertical',
+              size: 44,
+              iconSize: 18,
+              label: 'Open ${habit.name}',
+              color: colors.muted,
+              onTap: onOpen,
             ),
           ],
         ),

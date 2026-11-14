@@ -13,14 +13,14 @@ the device.
 | `lib/theme/` | `AppColors` token set as a `ThemeExtension`, `AppType` type scale, `Metrics`, `ThemeData` |
 | `lib/models/habit.dart` | `Habit`, `HabitKind`, `Routine`, starter habits, routine presets, habit-idea catalogue |
 | `lib/state/habit_store.dart` | `ChangeNotifier`: day state, history, streaks, weeks, timer, settings, persistence |
-| `lib/widgets/` | Icon set (inline SVG + full Lucide library), controls, habit row, habit mark, nav pill, popup menu, dialogs, share poster |
+| `lib/widgets/` | Icon set (inline SVG + full Lucide library), controls, habit row, habit mark, nav pill, popup menu, dialogs, wheel picker, share poster |
 | `lib/screens/` | Onboarding, Today, counter detail, timer, routine run, new habit, mark picker, Insights, Routines, Profile, `home_shell.dart` |
 | `lib/app_nav.dart` | `AppNav` + `AppNavScope` so pushed screens can switch tabs |
 | `lib/widgets/icon_library.dart` | Generated: 1,865 Lucide icon bodies + sorted names (`tool/gen_icons.py` regenerates it) |
 | `tool/gen_icons.py` | Converts a local `lucide-static` package into `icon_library.dart` |
 | `test/widget_test.dart` | 23 unit/widget tests |
 | `design/habit-tracker-prototype.html` | The prototype this build follows |
-| `screenshots/` | 390×844 web captures plus 1080×2400 Android captures (`09`, `16`–`20`) |
+| `screenshots/` | 390×867 dark Android captures (01–11), plus the Android focus overlay at 1080×2400 |
 
 ## Design facts encoded in the theme
 
@@ -36,8 +36,10 @@ the device.
 
 ## Deliberate divergences from the prototype
 
-1. **No photo picking.** `image_picker` needs plugin symlinks, which this Windows setup refuses
-   without Developer Mode. The profile avatar is initials in a clay disc; everything else matches.
+1. **The profile photo is optional.** `image_picker` opens the system picker; the image is
+   downscaled to 512px and stored as base64 in local storage. The avatar falls back to initials.
+   Android builds fine without Developer Mode; Windows desktop builds still need symlink support for
+   plugins.
 2. **Share sends text, not a PNG.** The poster is drawn natively and previewed in the dialog. On
    Android, **Share** opens the system share sheet with the week's caption through a small
    `MethodChannel` (`accrue/share`) in `MainActivity.kt` — no plugin, so the symlink limit

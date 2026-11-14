@@ -9,8 +9,8 @@ import '../theme/app_type.dart';
 import '../theme/metrics.dart';
 import '../util/format.dart';
 import '../widgets/habit_mark.dart';
+import '../widgets/habit_menu.dart';
 import '../widgets/ui.dart';
-import 'new_habit_screen.dart';
 
 Future<void> openCounter(
   BuildContext context,
@@ -64,13 +64,7 @@ class CounterDetailScreen extends StatelessWidget {
               children: [
                 HeadBar(
                   onBack: () => Navigator.of(context).maybePop(),
-                  actionLabel: 'Edit',
-                  onAction: () => openHabitForm(
-                    context,
-                    store,
-                    habit: habit,
-                    fromDetail: true,
-                  ),
+                  trailing: HabitActions(store: store, habit: habit),
                 ),
                 if (habit.badge)
                   HabitMark(habit: habit, size: 64)
@@ -120,7 +114,7 @@ class CounterDetailScreen extends StatelessWidget {
                       size: 64,
                       iconSize: 24,
                       filled: true,
-                      label: habit.step > 1 ? '${habit.step} less' : 'One less',
+                      label: '${Fmt.count(habit.step)} less',
                       onTap: habit.count <= 0
                           ? null
                           : () => store.decrement(habit),
@@ -131,7 +125,7 @@ class CounterDetailScreen extends StatelessWidget {
                       size: 64,
                       iconSize: 24,
                       filled: true,
-                      label: habit.step > 1 ? '${habit.step} more' : 'One more',
+                      label: '${Fmt.count(habit.step)} more',
                       onTap: habit.count >= habit.target
                           ? null
                           : () => store.increment(habit),
@@ -266,7 +260,7 @@ class _UnitDots extends StatelessWidget {
         if (large) {
           // Thousands of units cannot be dots: show one honest rail instead.
           return Semantics(
-            label: '${habit.count} of ${habit.target} marked',
+            label: '${Fmt.count(habit.count)} of ${Fmt.count(habit.target)} marked',
             child: SizedBox(
               width: inner,
               height: 14,
@@ -300,7 +294,7 @@ class _UnitDots extends StatelessWidget {
             .floorToDouble()
             .clamp(10.0, 26.0);
         return Semantics(
-          label: '${habit.count} of ${habit.target} marked',
+          label: '${Fmt.count(habit.count)} of ${Fmt.count(habit.target)} marked',
           child: Wrap(
             alignment: WrapAlignment.center,
             spacing: gap,

@@ -7,7 +7,7 @@ import '../widgets/brand_mark.dart';
 import '../widgets/ui.dart';
 
 /// Shown in the profile and on the About page.
-const String appVersion = '2.1';
+const String appVersion = '2.2';
 
 /// The app's display name.
 const String appName = 'Accrue';
@@ -93,8 +93,9 @@ class AboutScreen extends StatelessWidget {
               title: 'What is inside',
               body:
                   'Check-off, counted and timed habits with icons or a text '
-                  'badge, ordered routines, week insights and streaks, a share '
-                  'card, and focus blocking for timed habits on Android.',
+                  'badge, half-unit counts, ordered routines, week insights, a '
+                  'month heat map, per-habit reminders, a share card, and focus '
+                  'blocking for timed habits on Android.',
             ),
             _Section(
               title: 'Focus blocking',
@@ -108,8 +109,11 @@ class AboutScreen extends StatelessWidget {
             _Section(
               title: 'Reminders',
               body:
-                  'The reminder switch and time are stored as intent only — '
-                  'this build does not deliver notifications.',
+                  'Each habit can carry one daily reminder. Accrue asks Android '
+                  'for notification permission the first time one is set; the '
+                  'time is kept on device even when notifications are denied. '
+                  'Backups exported from Data & export contain every habit, '
+                  'routine, day of history, setting and the profile.',
             ),
             _Section(
               title: 'Licences',

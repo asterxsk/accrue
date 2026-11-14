@@ -88,7 +88,12 @@ class SharePoster extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                Avatar(name: name, size: 24, serif: true),
+                Avatar(
+                  name: name,
+                  size: 24,
+                  serif: true,
+                  photo: store.profilePhoto,
+                ),
                 const SizedBox(width: 7),
                 Flexible(
                   child: Text(

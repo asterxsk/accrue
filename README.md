@@ -28,14 +28,19 @@ and streak lives in local storage on the device.
 ## What it does
 
 - **Three kinds of habit.** A check habit is done or not; a count habit takes whatever increment
-  suits it; a timer habit runs a countdown that keeps the screen honest.
+  suits it — halves included; a timer habit runs a countdown that keeps the screen honest.
 - **Routines.** Order habits into a sequence and work through it one step at a time.
+- **Swipe between tabs.** Today, Insights, Routines and Profile move under your thumb.
 - **Icons or badges.** Every habit carries either a Lucide icon chosen by search from the full
   1,865-icon set, or a one- or two-character text badge on a gradient of your choosing.
-- **Week insights and streaks.** A week grid, per-habit history, completion share and current
-  streak, in light or dark.
+- **Week and month insights.** A seven-bar week with per-day shares, a month heat map that darkens
+  with the share of habits completed, streaks, and a filter for one habit at a time.
+- **Per-habit reminders.** Every habit can carry its own daily notification, set on a scrolling
+  hour-and-minute clock. The profile switches between 12- and 24-hour time; 12-hour adds AM/PM.
+- **Import and export.** A whole-device JSON backup, restorable from the Data & export page.
 - **Focus blocking (Android).** While a timer habit runs, an accessibility overlay covers apps you
-  have flagged as distracting, with a countdown and a way back into Accrue.
+  have flagged as distracting, with a countdown and a way back into Accrue. Each timer habit can
+  opt out.
 - **Share poster.** Weeks can be exported as an image, drawn locally.
 
 ## Install
@@ -65,7 +70,7 @@ Dispatch it once `pubspec.yaml` carries the version to ship:
 gh workflow run release.yml
 ```
 
-Pushing a tag (`git tag v2.1.2 && git push origin v2.1.2`) does the same. The workflow reads
+Pushing a tag (`git tag v2.2.0 && git push origin v2.2.0`) does the same. The workflow reads
 `version:` from `pubspec.yaml`, runs analyze and tests, builds `flutter build apk --release`,
 verifies the signature and publishes `accrue-<version>.apk`.
 
@@ -81,15 +86,17 @@ installed copy.
 | --- | --- |
 | `lib/theme` | Colour tokens, type scale, metrics, light and dark themes |
 | `lib/models` | Habits, routines, starter sets, habit-idea catalogue |
-| `lib/state/habit_store.dart` | State, day rollover, streaks, weeks, timer, persistence |
-| `lib/screens` | Onboarding and the four tabs, plus pushed detail screens |
-| `lib/widgets` | Shared control set, generated Lucide library, dialogs, share poster, brand mark |
+| `lib/state/habit_store.dart` | State, day rollover, streaks, weeks, month heat data, timer, import/export, persistence |
+| `lib/screens` | Onboarding and the four tabs, plus pushed detail, profile, editor and data screens |
+| `lib/widgets` | Shared control set, generated Lucide library, dialogs, wheel picker, heat map, share poster, brand mark |
 | `lib/util/focus.dart` + `android/.../FocusAccessibilityService.kt` | Focus-blocking channel, app list, overlay |
+| `lib/util/reminders.dart` | Per-habit daily notification scheduling |
 | `tool/gen_icons.py` | Regenerates `lib/widgets/icon_library.dart` from a local `lucide-static` tree |
+| `tool/demo_main.dart` | Dark demo entrypoint used for the README captures |
 | `tool/export_brand.py` | Exports the in-app enso mark to `docs/brand/accrue-enso.svg` |
 | `docs/` | [Product brief](docs/PRD.md) and brand assets |
 | `design/` | The prototype this build follows |
-| `screenshots/` | Captures of the built app at 390×844, plus the Android focus overlay at 1080×2400 |
+| `screenshots/` | Dark captures of the built Android app at 390×867, plus the Android focus overlay at 1080×2400 |
 
 Deliberate divergences from the prototype (no photo picking, caption-only sharing, no seeded demo
 data) are recorded in [NOTES.md](NOTES.md).

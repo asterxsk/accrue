@@ -54,6 +54,10 @@ class UpdateController extends ChangeNotifier {
   /// say "up to date" before settling back to its idle glyph.
   bool justChecked = false;
   Timer? _settle;
+
+  /// When GitHub's hourly API quota is spent, the Atom feed is read instead
+  /// until the quota refills at this time.
+  DateTime? _apiBlockedUntil;
   String installed = '';
   List<AppRelease> releases = const [];
   AppRelease? latest;
@@ -89,17 +93,7 @@ class UpdateController extends ChangeNotifier {
     notifyListeners();
     await loadInstalled();
     try {
-      final body = await _get(
-        'https://api.github.com/repos/$repo/releases?per_page=20',
-      );
-      final rows = (jsonDecode(body) as List<dynamic>)
-          .cast<Map<String, dynamic>>()
-          .where((row) => row['draft'] != true && row['prerelease'] != true)
-          .map(_parse)
-          .where((release) => release != null)
-          .cast<AppRelease>()
-          .toList()
-        ..sort((a, b) => compareVersions(b.version, a.version));
+      final rows = await _releases();
       releases = rows;
       latest = rows.isEmpty ? null : rows.first;
       selected = latest;
@@ -118,11 +112,61 @@ class UpdateController extends ChangeNotifier {
         phase = UpdatePhase.current;
         message = 'Latest build is ${latest!.version}.';
       }
+    } on _HttpFailure catch (failure) {
+      phase = UpdatePhase.failed;
+      message = failure.rateLimited
+          ? 'GitHub is limiting update checks${_until(failure.resetAt)}. '
+                'The next check works after that.'
+          : 'GitHub answered HTTP ${failure.status} while checking. Try again.';
+    } on FormatException {
+      phase = UpdatePhase.failed;
+      message = 'The release list came back unreadable. Try again.';
     } catch (_) {
       phase = UpdatePhase.failed;
       message = 'Could not reach GitHub. Check the connection and try again.';
     }
     notifyListeners();
+  }
+
+  /// The API first — it carries each asset's digest — and the public Atom feed
+  /// when GitHub's hourly quota for this IP is spent. The feed has no digest,
+  /// so a download from it is guarded by its ZIP structure instead.
+  Future<List<AppRelease>> _releases() async {
+    final blocked = _apiBlockedUntil;
+    if (blocked != null && DateTime.now().isBefore(blocked)) {
+      return _atomReleases();
+    }
+    try {
+      return await _apiReleases();
+    } on _HttpFailure catch (failure) {
+      if (!failure.rateLimited) rethrow;
+      _apiBlockedUntil =
+          failure.resetAt ?? DateTime.now().add(const Duration(minutes: 5));
+      return _atomReleases();
+    }
+  }
+
+  Future<List<AppRelease>> _apiReleases() async {
+    final body = await _get(
+      Uri.parse('https://api.github.com/repos/$repo/releases?per_page=20'),
+      headers: const {'Accept': 'application/vnd.github+json'},
+    );
+    return (jsonDecode(body) as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .where((row) => row['draft'] != true && row['prerelease'] != true)
+        .map(_parse)
+        .where((release) => release != null)
+        .cast<AppRelease>()
+        .toList()
+      ..sort((a, b) => compareVersions(b.version, a.version));
+  }
+
+  Future<List<AppRelease>> _atomReleases() async {
+    final body = await _get(Uri.parse('https://github.com/$repo/releases.atom'));
+    final rows = parseAtomReleases(body, repo: repo)
+      ..sort((a, b) => compareVersions(b.version, a.version));
+    if (rows.isEmpty) throw const FormatException('no releases in the feed');
+    return rows;
   }
 
   /// Streams [release]'s APK into the app cache, reporting progress 0..1.
@@ -200,6 +244,16 @@ class UpdateController extends ChangeNotifier {
         downloaded = null;
         progress = 0;
         message = 'The download is incomplete. Try again.';
+        return;
+      }
+      // Without a digest (the Atom feed carries none) the ZIP itself is the
+      // proof: a truncated file has no end-of-central-directory record.
+      if (expected == null && !await _looksLikeApk(file)) {
+        await _discard(file);
+        file = null;
+        downloaded = null;
+        progress = 0;
+        message = 'The download came through damaged. Try again.';
         return;
       }
       progress = 1;
@@ -300,19 +354,133 @@ List<int>? _parts(String version) {
   ];
 }
 
-Future<String> _get(String url) async {
+Future<String> _get(Uri url, {Map<String, String>? headers}) async {
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
   try {
-    final request = await client.getUrl(Uri.parse(url));
-    request.headers
-      ..set('Accept', 'application/vnd.github+json')
-      ..set('User-Agent', 'Accrue-updater');
+    final request = await client.getUrl(url);
+    request.headers.set('User-Agent', 'Accrue-updater');
+    headers?.forEach(request.headers.set);
     final response = await request.close();
     if (response.statusCode != 200) {
-      throw HttpException('HTTP ${response.statusCode}');
+      final reset = int.tryParse(
+        response.headers.value('x-ratelimit-reset') ?? '',
+      );
+      final retryAfter = int.tryParse(response.headers.value('retry-after') ?? '');
+      throw _HttpFailure(
+        response.statusCode,
+        reset != null
+            ? DateTime.fromMillisecondsSinceEpoch(reset * 1000)
+            : retryAfter != null
+            ? DateTime.now().add(Duration(seconds: retryAfter))
+            : null,
+      );
     }
     return await response.transform(utf8.decoder).join();
   } finally {
     client.close(force: true);
+  }
+}
+
+/// A status GitHub returned instead of a body. [resetAt] is when the hourly
+/// quota refills, when GitHub said so.
+class _HttpFailure implements Exception {
+  const _HttpFailure(this.status, this.resetAt);
+
+  final int status;
+  final DateTime? resetAt;
+
+  bool get rateLimited => status == 403 || status == 429;
+
+  @override
+  String toString() => 'HTTP $status';
+}
+
+/// " until 16:40" when the quota reset time is known, otherwise empty.
+String _until(DateTime? resetAt) {
+  if (resetAt == null) return '';
+  final local = resetAt.toLocal();
+  final hh = local.hour.toString().padLeft(2, '0');
+  final mm = local.minute.toString().padLeft(2, '0');
+  return ' until $hh:$mm';
+}
+
+/// Reads the release Atom feed, which needs no API quota. The feed carries the
+/// tag, the published time and the notes, but not the asset, so the APK URL is
+/// built from the name the release workflow publishes.
+List<AppRelease> parseAtomReleases(String xml, {required String repo}) {
+  final rows = <AppRelease>[];
+  for (final entry in RegExp(r'<entry>([\s\S]*?)</entry>').allMatches(xml)) {
+    final body = entry.group(1) ?? '';
+    final href =
+        RegExp(r'<link rel="alternate"[^>]*href="([^"]+)"').firstMatch(body)?.group(1) ??
+        '';
+    if (!href.contains('/tag/')) continue;
+    final tag = href.split('/tag/').last.replaceAll(RegExp(r'[/"]'), '').trim();
+    final version = tag.replaceFirst('v', '');
+    if (version.isEmpty) continue;
+    final updated = RegExp(r'<updated>([^<]+)</updated>').firstMatch(body)?.group(1);
+    final content =
+        RegExp(r'<content type="html">([\s\S]*?)</content>').firstMatch(body)?.group(1) ??
+        '';
+    rows.add(
+      AppRelease(
+        version: version,
+        tag: tag,
+        publishedAt: DateTime.tryParse(updated ?? '')?.toLocal(),
+        notes: _plainText(content),
+        apkUrl: 'https://github.com/$repo/releases/download/$tag/accrue-$version.apk',
+        apkBytes: 0,
+      ),
+    );
+  }
+  return rows;
+}
+
+/// HTML-escaped release notes as plain text lines. The feed escapes its HTML,
+/// so unescape first and strip the markup that appears.
+String _plainText(String html) {
+  final decoded = html
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&amp;', '&')
+      .replaceAll('<br>', '\n')
+      .replaceAll('<br/>', '\n')
+      .replaceAll('<br />', '\n')
+      .replaceAll('</p>', '\n')
+      .replaceAll(RegExp(r'<[^>]*>'), '');
+  return decoded
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .join('\n');
+}
+
+/// Cheap sanity check on a downloaded APK: a ZIP starts with a local header and
+/// ends with an end-of-central-directory record. A truncated transfer fails one
+/// of the two, which Android would report as "problem parsing the package".
+Future<bool> _looksLikeApk(File file) async {
+  try {
+    final length = await file.length();
+    if (length < 64) return false;
+    final head = await file.openRead(0, 4).first;
+    if (head.length < 4 || head[0] != 0x50 || head[1] != 0x4B) return false;
+    final tailStart = length > 65558 ? length - 65558 : 0;
+    final tail = await file.openRead(tailStart).fold<List<int>>(
+      <int>[],
+      (all, chunk) => all..addAll(chunk),
+    );
+    for (var i = tail.length - 22; i >= 0; i--) {
+      if (tail[i] == 0x50 &&
+          tail[i + 1] == 0x4B &&
+          tail[i + 2] == 0x05 &&
+          tail[i + 3] == 0x06) {
+        return true;
+      }
+    }
+    return false;
+  } catch (_) {
+    return false;
   }
 }

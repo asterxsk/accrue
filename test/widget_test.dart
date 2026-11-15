@@ -9,6 +9,7 @@ import 'package:accrue/widgets/habit_mark.dart';
 import 'package:accrue/widgets/icon_library.dart';
 import 'package:accrue/state/habit_store.dart';
 import 'package:accrue/util/format.dart';
+import 'package:accrue/util/updates.dart';
 import 'package:accrue/widgets/nav_pill.dart';
 import 'package:accrue/widgets/ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -365,6 +366,46 @@ void main() {
       final restored = await HabitStore.load();
       expect(restored.clock24, isFalse);
       expect(restored.formatTime(9 * 60), '9:00 AM');
+    });
+  });
+
+  group('updates', () {
+    const feed = '''
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <id>tag:github.com,2008:Repository/1/v2.3.0</id>
+    <updated>2026-11-15T14:24:24Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/a/b/releases/tag/v2.3.0"/>
+    <title>Accrue v2.3.0</title>
+    <content type="html">&lt;p&gt;Accrue 2.3.0.&lt;br&gt;Signed with the release key.&lt;/p&gt;</content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/1/v2.2.1</id>
+    <updated>2026-11-14T20:00:57Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/a/b/releases/tag/v2.2.1"/>
+    <title>Accrue v2.2.1</title>
+    <content type="html">&lt;p&gt;Accrue 2.2.1.&lt;/p&gt;</content>
+  </entry>
+</feed>
+''';
+
+    test('the Atom feed stands in for the rate-limited API', () {
+      final rows = parseAtomReleases(feed, repo: 'a/b');
+      expect(rows.map((r) => r.version), ['2.3.0', '2.2.1']);
+      expect(
+        rows.first.apkUrl,
+        'https://github.com/a/b/releases/download/v2.3.0/accrue-2.3.0.apk',
+      );
+      expect(rows.first.notes, 'Accrue 2.3.0.\nSigned with the release key.');
+      expect(rows.first.apkBytes, 0);
+      expect(rows.first.sha256, isNull);
+      expect(rows.first.publishedAt, isNotNull);
+    });
+
+    test('versions compare numerically', () {
+      expect(isNewer('2.10.0', '2.9.2'), isTrue);
+      expect(isNewer('2.3.0', '2.3.0'), isFalse);
+      expect(isNewer('2.2.9', '2.3.0'), isFalse);
     });
   });
 

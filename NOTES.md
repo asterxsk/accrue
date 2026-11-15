@@ -19,7 +19,7 @@ the device.
 | `lib/app_nav.dart` | `AppNav` + `AppNavScope` so pushed screens can switch tabs |
 | `lib/widgets/icon_library.dart` | Generated: 1,865 Lucide icon bodies + sorted names (`tool/gen_icons.py` regenerates it) |
 | `tool/gen_icons.py` | Converts a local `lucide-static` package into `icon_library.dart` |
-| `test/widget_test.dart` | 29 unit/widget tests |
+| `test/widget_test.dart` | 31 unit/widget tests |
 | `screenshots/` | 390×867 dark Android captures (01–11), plus the Android focus overlay at 1080×2400 |
 
 ## Design facts encoded in the theme
@@ -138,6 +138,12 @@ the device.
   Android reports as "problem parsing the package". The native side (`installApk`) opens the
   unknown-sources settings page on first use and otherwise hands the file to `ACTION_VIEW` through
   `${applicationId}.fileprovider`.
+- **A spent API quota is not an outage.** GitHub allows 60 unauthenticated calls an hour per IP, and
+  a 403 used to surface as "could not reach GitHub". The API is tried first because it carries each
+  asset's SHA-256; when it answers 403/429 the public `releases.atom` feed is read instead, the
+  asset URL is built as `releases/download/<tag>/accrue-<version>.apk`, and the download is proven
+  by its ZIP structure (local header up front, end-of-central-directory record in the tail). The
+  `X-RateLimit-Reset` time is honoured, so later checks go straight to the feed until it refills.
 - **Completing a habit throws confetti** from an `OverlayEntry` above all routes for 1.5 s and
   plays `assets/sounds/complete.wav`. Both hang off `HabitStore.celebration`, a `ValueNotifier<int>`
   that `_mutate` bumps only when a habit crosses from not-done to done on today, so a row tap, a
@@ -151,7 +157,7 @@ the device.
 ## Verification
 
 - `flutter analyze` — no issues.
-- `flutter test` — 29/29 pass (the profile test now walks the Appearance pop-up).
+- `flutter test` — 31/31 pass, including the Atom feed fallback and version comparison.
 - Debug APK installed on the Android 15 emulator and walked end to end: onboarding, check/count/timer,
   counter detail, routine runner, rename/create/delete, reminder time, week start, appearance, the
   Android share sheet, and state after a force-stop and relaunch.
@@ -170,7 +176,8 @@ the device.
   checking from the profile corner spins → accent check + "No updates. You are on the latest build."
   for two seconds → back to the refresh glyph, ticking a habit throws confetti and chimes, and
   *Accessibility access* reads Off then opens the system Accessibility page listing "Accrue focus
-  blocking".
+  blocking". With the host IP's API quota spent (403), a check still resolved through the Atom feed,
+  listed 2.3.0 back to 2.1.0, and downloaded 2.2.1 to an Install button.
 
 ## Repository and releases
 

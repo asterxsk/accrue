@@ -1,31 +1,12 @@
 import 'dart:math' as math;
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../util/sfx.dart';
 
-/// One short chime per completed habit. The clip is a bundled asset, so nothing
-/// is fetched and a failure to play never blocks the celebration.
-class CompletionSound {
-  CompletionSound._();
-
-  static AudioPlayer? _player;
-
-  static Future<void> play() async {
-    try {
-      final player = _player ??= AudioPlayer()
-        ..setReleaseMode(ReleaseMode.stop)
-        ..setPlayerMode(PlayerMode.lowLatency);
-      await player.stop();
-      await player.play(AssetSource('sounds/complete.wav'));
-    } catch (_) {
-      // No audio device, or tests without the plugin: stay quiet.
-    }
-  }
-}
-
-/// Throws confetti from the bottom of the screen once, above every route.
+/// Fires two confetti cannons, one from each top corner, once, above every
+/// route.
 void celebrate(BuildContext context) {
   final overlay = Overlay.maybeOf(context, rootOverlay: true);
   if (overlay == null) return;
@@ -38,7 +19,7 @@ void celebrate(BuildContext context) {
     ),
   );
   overlay.insert(entry);
-  CompletionSound.play();
+  Sfx.playPop();
 }
 
 class _ConfettiBurst extends StatefulWidget {
@@ -78,16 +59,19 @@ class _ConfettiBurstState extends State<_ConfettiBurst>
       widget.colors.text,
     ];
     return [
-      for (var i = 0; i < 70; i++)
+      // Two cannons, one in each top corner, firing down and inward.
+      for (var i = 0; i < 80; i++)
         _Piece(
-          // Popped from the upper middle, fanned down and outward.
-          originX: 0.5 + (random.nextDouble() - 0.5) * 0.14,
-          originY: 0.02 + random.nextDouble() * 0.05,
-          velocityX: (random.nextDouble() - 0.5) * 1.4,
-          velocityY: 0.12 + random.nextDouble() * 0.5,
+          originX: i.isEven
+              ? 0.02 + random.nextDouble() * 0.04
+              : 0.94 + random.nextDouble() * 0.04,
+          originY: 0.015 + random.nextDouble() * 0.035,
+          velocityX: (i.isEven ? 1.0 : -1.0) *
+              (0.18 + random.nextDouble() * 0.62),
+          velocityY: 0.1 + random.nextDouble() * 0.42,
           spin: (random.nextDouble() - 0.5) * 14,
           size: 3.5 + random.nextDouble() * 5,
-          delay: random.nextDouble() * 0.18,
+          delay: random.nextDouble() * 0.16,
           color: palette[random.nextInt(palette.length)],
           round: random.nextBool(),
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_type.dart';
+import '../util/sfx.dart';
 
 /// A snapping column of values you flick through: the clock face used for
 /// reminder times, where the hour is scrolled to instead of stepped to.
@@ -101,6 +102,7 @@ class _WheelPickerState extends State<WheelPicker> {
                 final value = index % widget.values.length;
                 if (value == _index) return;
                 setState(() => _index = value);
+                Sfx.playTick();
                 widget.onChanged(value);
               },
               childDelegate: ListWheelChildBuilderDelegate(

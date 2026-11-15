@@ -12,10 +12,11 @@ the device.
 | `lib/theme/` | `AppColors` token set as a `ThemeExtension`, `AppType` type scale, `Metrics`, `ThemeData` |
 | `lib/models/habit.dart` | `Habit`, `HabitKind`, `Routine`, starter habits, routine presets, habit-idea catalogue |
 | `lib/state/habit_store.dart` | `ChangeNotifier`: day state, history, streaks, weeks, timer, settings, persistence |
-| `lib/widgets/` | Icon set (inline SVG + full Lucide library), controls, habit row, habit mark, nav pill, popup menu, dialogs, wheel picker, share poster, celebration (confetti + chime) |
+| `lib/widgets/` | Icon set (inline SVG + full Lucide library), controls, habit row, habit mark, nav pill, popup menu, dialogs, wheel picker, share poster, celebration (confetti) |
 | `lib/screens/` | Onboarding, Today, counter detail, timer, routine run, new habit, mark picker, Insights, Routines, Profile, Updates, `home_shell.dart` |
 | `lib/util/updates.dart` | `UpdateController`: GitHub release list, version compare, APK download with SHA-256 and size check, install hand-off |
-| `assets/sounds/complete.wav` | The completion chime (`audioplayers`, low-latency, failures swallowed) |
+| `lib/util/sfx.dart` | Two bundled sounds — `pop.wav` for a completed habit, `tick.wav` for each wheel row (`audioplayers`, low-latency, failures swallowed) |
+| `assets/sounds/` | `pop.wav` (cannon report: noise crack, 150→45 Hz thump, air tail) and `tick.wav` (3.5 ms click) |
 | `lib/app_nav.dart` | `AppNav` + `AppNavScope` so pushed screens can switch tabs |
 | `lib/widgets/icon_library.dart` | Generated: 1,865 Lucide icon bodies + sorted names (`tool/gen_icons.py` regenerates it) |
 | `tool/gen_icons.py` | Converts a local `lucide-static` package into `icon_library.dart` |
@@ -144,10 +145,15 @@ the device.
   asset URL is built as `releases/download/<tag>/accrue-<version>.apk`, and the download is proven
   by its ZIP structure (local header up front, end-of-central-directory record in the tail). The
   `X-RateLimit-Reset` time is honoured, so later checks go straight to the feed until it refills.
-- **Completing a habit throws confetti** from an `OverlayEntry` above all routes for 1.5 s and
-  plays `assets/sounds/complete.wav`. Both hang off `HabitStore.celebration`, a `ValueNotifier<int>`
+- **Completing a habit fires two confetti cannons** from the top corners of an `OverlayEntry` above
+  all routes for 1.5 s, and plays `assets/sounds/pop.wav` — a noise crack, a 150→45 Hz thump and an
+  air tail, not a chime. Both hang off `HabitStore.celebration`, a `ValueNotifier<int>`
   that `_mutate` bumps only when a habit crosses from not-done to done on today, so a row tap, a
   `+`, a typed count, a finished timer and the routine runner all trigger it exactly once.
+- **Wheels tick.** `WheelPicker` plays `assets/sounds/tick.wav` on every selected-row change, so the
+  reminder clock and the *Add time* columns click their way past each value. `Sfx` keeps one
+  low-latency player per asset and drops ticks closer than 45 ms apart, which is what a fast flick
+  produces; without that the clicks blur and the player falls behind.
 - **Accessibility access is a row**, not a switch: the grant lives in system settings and Android
   can drop it after an update or a stretch of disuse. The row reports `isEnabled` on load and on
   resume, and opens `ACTION_ACCESSIBILITY_SETTINGS`. `FocusBlocking.canQuery` short-circuits the
@@ -174,7 +180,7 @@ the device.
   emulator after the wheel picker, share poster, updater and celebration changes: hour wheel wraps
   both ways, 12-hour mapping matches the label, *Add time* opens at 00:00:00 on three wheels,
   checking from the profile corner spins → accent check + "No updates. You are on the latest build."
-  for two seconds → back to the refresh glyph, ticking a habit throws confetti and chimes, and
+  for two seconds → back to the refresh glyph, ticking a habit fires confetti and the pop, and
   *Accessibility access* reads Off then opens the system Accessibility page listing "Accrue focus
   blocking". With the host IP's API quota spent (403), a check still resolved through the Atom feed,
   listed 2.3.0 back to 2.1.0, and downloaded 2.2.1 to an Install button.

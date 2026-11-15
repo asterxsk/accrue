@@ -46,8 +46,8 @@ and streak lives in local storage on the device.
   opt out.
 - **Share poster.** A 4:5 card of the week — the bars, the totals and a projection of where the
   current pace leads. Share sends its numbers as text.
-- **A small celebration.** Finishing a habit throws a burst of confetti and a short chime, whichever
-  way it was completed.
+- **A small celebration.** Finishing a habit fires confetti cannons from both top corners with a
+  cannon pop, whichever way it was completed. The scrolling time wheels tick as they pass each value.
 
 ## Install
 

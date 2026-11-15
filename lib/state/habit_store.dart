@@ -28,7 +28,7 @@ class HabitStore extends ChangeNotifier {
   List<Routine> routines = [];
 
   /// Bumped once each time a habit crosses from not-done to done today. The
-  /// shell plays the confetti and the chime off this, wherever the tap landed.
+  /// shell plays the confetti and the pop off this, wherever the tap landed.
   final ValueNotifier<int> celebration = ValueNotifier<int>(0);
 
   /// date key -> habit ids completed that day (past days only).

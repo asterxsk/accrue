@@ -32,7 +32,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   /// Every habit that crosses into done — from a row, the counter, the timer
-  /// or the routine runner — lands here for the confetti and the chime.
+  /// or the routine runner — lands here for the confetti and the pop.
   void _onHabitCompleted() {
     if (!mounted) return;
     celebrate(context);

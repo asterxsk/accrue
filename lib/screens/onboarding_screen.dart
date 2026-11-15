@@ -135,7 +135,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
         const SizedBox(height: 10),
         Text(
-          'A name makes this app personal. Everything stays on this device.',
+          'A name makes this app personal.',
           style: AppType.body.copyWith(color: colors.muted),
         ),
         const SizedBox(height: 22),

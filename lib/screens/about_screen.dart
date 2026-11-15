@@ -79,15 +79,7 @@ class AboutScreen extends StatelessWidget {
               title: 'What Accrue means',
               body:
                   'To accrue is to build up over time. Every check, glass and '
-                  'minute adds to a record that only grows — kept on this '
-                  'device, never sent anywhere.',
-            ),
-            _Section(
-              title: 'Local only',
-              body:
-                  'There is no account, no sync and no network. Your habits, '
-                  'history and profile stay in this device\'s storage, and '
-                  'clearing the app\'s data removes them.',
+                  'minute adds to a record that only grows.',
             ),
             _Section(
               title: 'What is inside',
@@ -123,11 +115,6 @@ class AboutScreen extends StatelessWidget {
                   'BSD-3-Clause licence.',
             ),
             const SizedBox(height: 22),
-            Text(
-              'Made by $studioName · on this device, nothing leaves it',
-              style: AppType.micro.copyWith(color: colors.faint),
-            ),
-            const SizedBox(height: 6),
             Text(
               '© 2026 $studioName',
               style: AppType.micro.copyWith(color: colors.faint),

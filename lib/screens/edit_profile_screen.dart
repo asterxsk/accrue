@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../state/habit_store.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_type.dart';
 import '../theme/metrics.dart';
 import '../widgets/ui.dart';
 
@@ -156,10 +155,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       textCapitalization: TextCapitalization.sentences,
                     ),
                     const SizedBox(height: 26),
-                    Text(
-                      'Your name, bio and photo stay on this device.',
-                      style: AppType.micro.copyWith(color: colors.faint),
-                    ),
                   ],
                 ),
               ),

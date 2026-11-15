@@ -35,9 +35,7 @@ class ProfileScreen extends StatelessWidget {
       listenable: store,
       builder: (context, _) {
         final name = store.profileName.isEmpty ? 'You' : store.profileName;
-        final bio = store.profileBio.isEmpty
-            ? 'Local profile · nothing syncs, nothing leaves.'
-            : store.profileBio;
+        final bio = store.profileBio;
 
         return SingleChildScrollView(
           padding: screenPadding(context, topLevel: true),
@@ -65,13 +63,15 @@ class ProfileScreen extends StatelessWidget {
                               color: colors.text,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            bio,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppType.meta.copyWith(color: colors.muted),
-                          ),
+                          if (bio.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              bio,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppType.meta.copyWith(color: colors.muted),
+                            ),
+                          ],
                         ],
                       ),
                     ),

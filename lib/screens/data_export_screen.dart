@@ -148,12 +148,6 @@ class DataExportScreen extends StatelessWidget {
             ),
             const SizedBox(height: 22),
             Text(
-              'Everything Accrue keeps lives on this device: there is no '
-              'account and no sync.',
-              style: AppType.body.copyWith(color: colors.muted),
-            ),
-            const SizedBox(height: 10),
-            Text(
               'A backup is a single JSON file. Importing one replaces the '
               'current data here, so keep the file somewhere you can find it '
               'again.',

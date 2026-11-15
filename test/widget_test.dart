@@ -519,10 +519,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(
-        find.text('Local profile · nothing syncs, nothing leaves.'),
-        findsOneWidget,
-      );
+      expect(find.text('Alex'), findsWidgets);
+      expect(find.text('Appearance'), findsOneWidget);
 
       await tester.tap(find.text('Appearance').last);
       await tester.pumpAndSettle();

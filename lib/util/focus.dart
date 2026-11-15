@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 
@@ -23,6 +24,11 @@ class InstalledApp {
 class FocusBlocking {
   static const MethodChannel _channel = MethodChannel('habit_tracker/focus');
   static const Duration _timeout = Duration(seconds: 4);
+
+  /// False under `flutter test`, where a channel call has no native side and
+  /// its 4-second guard would outlive the widget tree as a pending timer.
+  static bool get canQuery =>
+      !Platform.environment.containsKey('FLUTTER_TEST');
 
   /// False on platforms without the native side.
   static Future<bool> get supported async {

@@ -4,6 +4,7 @@ import '../state/habit_store.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_type.dart';
 import '../theme/metrics.dart';
+import '../util/focus.dart';
 import '../util/share.dart';
 import '../util/updates.dart';
 import '../widgets/dialogs.dart';
@@ -164,6 +165,7 @@ class ProfileScreen extends StatelessWidget {
                     : '${store.blockedApps.length}',
                 onTap: () => openDistractingApps(context, store),
               ),
+              const _AccessibilityRow(),
               _GroupLabel('Data', colors: colors),
               SettingsRow(
                 label: 'Data & export',
@@ -304,6 +306,66 @@ class _UpdateButton extends StatelessWidget {
               );
           },
         );
+      },
+    );
+  }
+}
+
+/// Accessibility access is granted in system settings, and Android can drop it
+/// after an update or a stretch of disuse. This row says whether the service is
+/// on right now and opens that settings page to switch it back on.
+class _AccessibilityRow extends StatefulWidget {
+  const _AccessibilityRow();
+
+  @override
+  State<_AccessibilityRow> createState() => _AccessibilityRowState();
+}
+
+class _AccessibilityRowState extends State<_AccessibilityRow>
+    with WidgetsBindingObserver {
+  bool? _enabled;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back from settings is the moment the value can have changed.
+    if (state == AppLifecycleState.resumed) _load();
+  }
+
+  Future<void> _load() async {
+    if (!FocusBlocking.canQuery) {
+      setState(() => _enabled = false);
+      return;
+    }
+    final enabled = await FocusBlocking.enabled;
+    if (!mounted) return;
+    setState(() => _enabled = enabled);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsRow(
+      label: 'Accessibility access',
+      value: switch (_enabled) {
+        null => '…',
+        true => 'On',
+        false => 'Off',
+      },
+      onTap: () async {
+        await FocusBlocking.openSettings();
+        await _load();
       },
     );
   }

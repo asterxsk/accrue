@@ -4,6 +4,7 @@ import '../app_nav.dart';
 import '../state/habit_store.dart';
 import '../theme/app_colors.dart';
 import '../theme/metrics.dart';
+import '../widgets/celebration.dart';
 import '../widgets/nav_pill.dart';
 import 'insights_screen.dart';
 import 'profile_screen.dart';
@@ -23,6 +24,19 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   final PageController _pages = PageController();
   AppNav? _nav;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.store.celebration.addListener(_onHabitCompleted);
+  }
+
+  /// Every habit that crosses into done — from a row, the counter, the timer
+  /// or the routine runner — lands here for the confetti and the chime.
+  void _onHabitCompleted() {
+    if (!mounted) return;
+    celebrate(context);
+  }
 
   @override
   void didChangeDependencies() {
@@ -54,6 +68,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   void dispose() {
+    widget.store.celebration.removeListener(_onHabitCompleted);
     _nav?.removeListener(_onNavChanged);
     _pages.dispose();
     super.dispose();

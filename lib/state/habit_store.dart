@@ -27,6 +27,10 @@ class HabitStore extends ChangeNotifier {
   List<Habit> habits = [];
   List<Routine> routines = [];
 
+  /// Bumped once each time a habit crosses from not-done to done today. The
+  /// shell plays the confetti and the chime off this, wherever the tap landed.
+  final ValueNotifier<int> celebration = ValueNotifier<int>(0);
+
   /// date key -> habit ids completed that day (past days only).
   Map<String, Set<String>> history = {};
 
@@ -389,20 +393,29 @@ class HabitStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Runs [change] and celebrates a habit that just became done. Anything that
+  /// can complete a habit goes through here so the tick happens in one place.
+  void _mutate(Habit habit, VoidCallback change) {
+    _ensureDay();
+    final wasDone = doneOn(today, habit.id);
+    change();
+    if (!wasDone && doneOn(today, habit.id)) celebration.value++;
+    _commit();
+  }
+
   void toggleCheck(Habit habit) {
     if (habit.kind != HabitKind.check) return;
-    _ensureDay();
-    habit.checked = !habit.checked;
-    _commit();
+    _mutate(habit, () => habit.checked = !habit.checked);
   }
 
   void increment(Habit habit) {
     if (habit.kind != HabitKind.count) return;
-    _ensureDay();
-    habit.count = _round(
-      min(habit.target.toDouble(), habit.count + habit.step),
+    _mutate(
+      habit,
+      () => habit.count = _round(
+        min(habit.target.toDouble(), habit.count + habit.step),
+      ),
     );
-    _commit();
   }
 
   void decrement(Habit habit) {
@@ -414,9 +427,10 @@ class HabitStore extends ChangeNotifier {
 
   void setCount(Habit habit, double next) {
     if (habit.kind != HabitKind.count) return;
-    _ensureDay();
-    habit.count = _round(next.clamp(0, habit.target.toDouble()));
-    _commit();
+    _mutate(
+      habit,
+      () => habit.count = _round(next.clamp(0, habit.target.toDouble())),
+    );
   }
 
   /// Keeps repeated fractional steps from drifting (0.1 + 0.2 problems).
@@ -425,21 +439,21 @@ class HabitStore extends ChangeNotifier {
   /// Marks a habit done/not done from the routine runner, which has to work
   /// for every kind.
   void setHabitDone(Habit habit, bool done) {
-    _ensureDay();
-    switch (habit.kind) {
-      case HabitKind.check:
-        habit.checked = done;
-      case HabitKind.count:
-        habit.count = done ? habit.target.toDouble() : 0;
-      case HabitKind.timer:
-        habit.seconds = done ? max(habit.seconds, habit.target * 60) : 0;
-        if (runningHabitId == habit.id) {
-          runningHabitId = null;
-          _timerStartedAt = null;
-          _timerBaseSeconds = 0;
-        }
-    }
-    _commit();
+    _mutate(habit, () {
+      switch (habit.kind) {
+        case HabitKind.check:
+          habit.checked = done;
+        case HabitKind.count:
+          habit.count = done ? habit.target.toDouble() : 0;
+        case HabitKind.timer:
+          habit.seconds = done ? max(habit.seconds, habit.target * 60) : 0;
+          if (runningHabitId == habit.id) {
+            runningHabitId = null;
+            _timerStartedAt = null;
+            _timerBaseSeconds = 0;
+          }
+      }
+    });
   }
 
   void toggleTimer(Habit habit) {
@@ -466,15 +480,15 @@ class HabitStore extends ChangeNotifier {
   }
 
   void addSeconds(Habit habit, int delta) {
-    _ensureDay();
-    final base = isRunning(habit) ? liveSeconds(habit) : habit.seconds;
-    final next = (base + delta).clamp(0, 86400).toInt();
-    if (isRunning(habit)) {
-      _timerBaseSeconds = next;
-      _timerStartedAt = DateTime.now();
-    }
-    habit.seconds = next;
-    _commit();
+    _mutate(habit, () {
+      final base = isRunning(habit) ? liveSeconds(habit) : habit.seconds;
+      final next = (base + delta).clamp(0, 86400).toInt();
+      if (isRunning(habit)) {
+        _timerBaseSeconds = next;
+        _timerStartedAt = DateTime.now();
+      }
+      habit.seconds = next;
+    });
   }
 
   /// Called once a second while a timer runs.
@@ -502,10 +516,12 @@ class HabitStore extends ChangeNotifier {
     if (id == null || startedAt == null) return;
     final habit = habitById(id);
     if (habit == null) return;
+    final wasDone = doneOn(today, habit.id);
     final elapsed = DateTime.now().difference(startedAt).inSeconds;
     habit.seconds = (_timerBaseSeconds + max(0, elapsed))
         .clamp(0, 86400)
         .toInt();
+    if (!wasDone && doneOn(today, habit.id)) celebration.value++;
   }
 
   void resetRoutine(Routine routine) {

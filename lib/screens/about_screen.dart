@@ -7,7 +7,7 @@ import '../widgets/brand_mark.dart';
 import '../widgets/ui.dart';
 
 /// Shown in the profile and on the About page.
-const String appVersion = '2.2';
+const String appVersion = '2.3';
 
 /// The app's display name.
 const String appName = 'Accrue';

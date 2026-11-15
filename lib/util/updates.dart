@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -48,6 +49,11 @@ class UpdateController extends ChangeNotifier {
 
   UpdatePhase phase = UpdatePhase.idle;
   String? message;
+
+  /// True for two seconds after a check finds nothing newer, so the button can
+  /// say "up to date" before settling back to its idle glyph.
+  bool justChecked = false;
+  Timer? _settle;
   String installed = '';
   List<AppRelease> releases = const [];
   AppRelease? latest;
@@ -78,6 +84,8 @@ class UpdateController extends ChangeNotifier {
     if (phase == UpdatePhase.checking) return;
     phase = UpdatePhase.checking;
     message = null;
+    justChecked = false;
+    _settle?.cancel();
     notifyListeners();
     await loadInstalled();
     try {
@@ -96,6 +104,15 @@ class UpdateController extends ChangeNotifier {
       latest = rows.isEmpty ? null : rows.first;
       selected = latest;
       phase = hasUpdate ? UpdatePhase.available : UpdatePhase.current;
+      if (!hasUpdate) {
+        justChecked = true;
+        message = 'No updates. You are on the latest build.';
+        _settle = Timer(const Duration(seconds: 2), () {
+          justChecked = false;
+          if (phase == UpdatePhase.current) message = null;
+          notifyListeners();
+        });
+      }
       if (installed.isEmpty && latest != null) {
         // Unknown installed version: say nothing definitive.
         phase = UpdatePhase.current;

@@ -273,13 +273,16 @@ class _UpdateButton extends StatelessWidget {
           );
         }
         final available = updates.hasUpdate;
+        final upToDate = updates.justChecked && !available;
         return AppIconButton(
-          icon: available ? 'download' : 'refresh-cw',
+          icon: upToDate ? 'check' : (available ? 'download' : 'refresh-cw'),
           size: 44,
           iconSize: 18,
           filled: true,
-          color: available ? colors.accent : null,
-          label: available ? 'Update available' : 'Check for updates',
+          color: available || upToDate ? colors.accent : null,
+          label: upToDate
+              ? 'Up to date'
+              : (available ? 'Update available' : 'Check for updates'),
           onTap: () async {
             if (available) {
               await openUpdates(context);
@@ -295,7 +298,7 @@ class _UpdateButton extends StatelessWidget {
                   content: Text(
                     updates.phase == UpdatePhase.failed
                         ? updates.message!
-                        : "You're on the latest build.",
+                        : 'No updates. You are on the latest build.',
                   ),
                 ),
               );

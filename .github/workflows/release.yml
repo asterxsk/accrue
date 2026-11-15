@@ -66,17 +66,55 @@ jobs:
 
       - run: flutter pub get
 
-      - run: flutter analyze
+      # A warning is a defect here, not a note: the release must not ship one.
+      - run: flutter analyze --fatal-infos --fatal-warnings
 
       - run: flutter test
 
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Verify signature
+      # The APK is the product. Refuse to publish one that Android cannot
+      # parse, that carries another package or version, or that any key other
+      # than the stable release key signed.
+      - name: Verify APK
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.name }}
+          EXPECTED_CODE: ${{ steps.version.outputs.code }}
+          # SHA-256 of the release certificate, so a stray debug key fails.
+          EXPECTED_CERT: 09fbb2aff8aa99cb7633bfe08180dea1f8364119e556b50252b127c7a11b80dc
         run: |
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          test -f "$apk"
+          unzip -tq "$apk" > /dev/null
+          echo "Zip structure OK."
+
           build_tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          "$build_tools/apksigner" verify --print-certs             build/app/outputs/flutter-apk/app-release.apk | head -5
+          certs=$("$build_tools/apksigner" verify --print-certs "$apk")
+          echo "$certs" | head -5
+          echo "$certs" | grep -q "SHA-256 digest: $EXPECTED_CERT" || {
+            echo "::error::APK is not signed with the release key."
+            exit 1
+          }
+
+          "$build_tools/aapt2" dump badging "$apk" > badging.txt
+          grep -q "package: name='com.wrongturn.accrue'" badging.txt || {
+            echo "::error::Unexpected package name."
+            exit 1
+          }
+          grep -q "versionName='$EXPECTED_VERSION'" badging.txt || {
+            echo "::error::APK versionName does not match pubspec ($EXPECTED_VERSION)."
+            exit 1
+          }
+          grep -q "versionCode='$EXPECTED_CODE'" badging.txt || {
+            echo "::error::APK versionCode does not match pubspec ($EXPECTED_CODE)."
+            exit 1
+          }
+          grep -q "minSdkVersion:'24'" badging.txt || {
+            echo "::error::minSdk moved away from Android 7.0."
+            exit 1
+          }
+          echo "Package, version and minSdk OK."
 
       - name: Name the artifact
         run: |

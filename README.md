@@ -37,6 +37,10 @@ and streak lives in local storage on the device.
 - **Per-habit reminders.** Every habit can carry its own daily notification, set on a scrolling
   hour-and-minute clock. The profile switches between 12- and 24-hour time; 12-hour adds AM/PM.
 - **Import and export.** A whole-device JSON backup, restorable from the Data & export page.
+- **Manual updates.** The corner button on Profile checks the GitHub releases API when tapped —
+  never in the background — and a newer build downloads with progress and installs through
+  Android's own installer. The download is checked against the release's SHA-256 before it is
+  offered.
 - **Focus blocking (Android).** While a timer habit runs, an accessibility overlay covers apps you
   have flagged as distracting, with a countdown and a way back into Accrue. Each timer habit can
   opt out.

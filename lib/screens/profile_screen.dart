@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_type.dart';
 import '../theme/metrics.dart';
 import '../util/share.dart';
+import '../util/updates.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/popup_menu.dart';
 import '../widgets/ui.dart';
@@ -12,6 +13,7 @@ import 'about_screen.dart';
 import 'data_export_screen.dart';
 import 'distracting_apps_screen.dart';
 import 'edit_profile_screen.dart';
+import 'updates_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.store});
@@ -42,7 +44,11 @@ class ProfileScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const HeaderBlock(eyebrow: 'Local profile', title: 'Profile'),
+              HeaderBlock(
+                eyebrow: 'Local profile',
+                title: 'Profile',
+                trailing: const _UpdateButton(),
+              ),
               const SizedBox(height: 20),
               AppCard(
                 padding: const EdgeInsets.all(16),
@@ -165,6 +171,11 @@ class ProfileScreen extends StatelessWidget {
               ),
               _GroupLabel('About', colors: colors),
               SettingsRow(
+                label: 'Updates',
+                value: 'v$appVersion',
+                onTap: () => openUpdates(context),
+              ),
+              SettingsRow(
                 label: 'About',
                 value: 'v$appVersion',
                 onTap: () => openAbout(context),
@@ -228,6 +239,69 @@ class _EditPill extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The corner button: a refresh glyph that spins while checking, and turns
+/// into a download glyph once GitHub offers a newer build. Tapping the
+/// download glyph opens the Updates page; the refresh glyph only checks.
+class _UpdateButton extends StatelessWidget {
+  const _UpdateButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final updates = UpdateController.instance;
+    return ListenableBuilder(
+      listenable: updates,
+      builder: (context, _) {
+        if (updates.phase == UpdatePhase.checking) {
+          return SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+                ),
+              ),
+            ),
+          );
+        }
+        final available = updates.hasUpdate;
+        return AppIconButton(
+          icon: available ? 'download' : 'refresh-cw',
+          size: 44,
+          iconSize: 18,
+          filled: true,
+          color: available ? colors.accent : null,
+          label: available ? 'Update available' : 'Check for updates',
+          onTap: () async {
+            if (available) {
+              await openUpdates(context);
+              return;
+            }
+            await updates.check();
+            if (!context.mounted) return;
+            if (updates.hasUpdate) return;
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text(
+                    updates.phase == UpdatePhase.failed
+                        ? updates.message!
+                        : "You're on the latest build.",
+                  ),
+                ),
+              );
+          },
+        );
+      },
     );
   }
 }

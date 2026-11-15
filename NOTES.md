@@ -12,8 +12,10 @@ the device.
 | `lib/theme/` | `AppColors` token set as a `ThemeExtension`, `AppType` type scale, `Metrics`, `ThemeData` |
 | `lib/models/habit.dart` | `Habit`, `HabitKind`, `Routine`, starter habits, routine presets, habit-idea catalogue |
 | `lib/state/habit_store.dart` | `ChangeNotifier`: day state, history, streaks, weeks, timer, settings, persistence |
-| `lib/widgets/` | Icon set (inline SVG + full Lucide library), controls, habit row, habit mark, nav pill, popup menu, dialogs, wheel picker, share poster |
-| `lib/screens/` | Onboarding, Today, counter detail, timer, routine run, new habit, mark picker, Insights, Routines, Profile, `home_shell.dart` |
+| `lib/widgets/` | Icon set (inline SVG + full Lucide library), controls, habit row, habit mark, nav pill, popup menu, dialogs, wheel picker, share poster, celebration (confetti + chime) |
+| `lib/screens/` | Onboarding, Today, counter detail, timer, routine run, new habit, mark picker, Insights, Routines, Profile, Updates, `home_shell.dart` |
+| `lib/util/updates.dart` | `UpdateController`: GitHub release list, version compare, APK download with SHA-256 and size check, install hand-off |
+| `assets/sounds/complete.wav` | The completion chime (`audioplayers`, low-latency, failures swallowed) |
 | `lib/app_nav.dart` | `AppNav` + `AppNavScope` so pushed screens can switch tabs |
 | `lib/widgets/icon_library.dart` | Generated: 1,865 Lucide icon bodies + sorted names (`tool/gen_icons.py` regenerates it) |
 | `tool/gen_icons.py` | Converts a local `lucide-static` package into `icon_library.dart` |
@@ -41,8 +43,8 @@ the device.
 2. **Share sends text, not a PNG.** The poster is drawn natively and previewed in the dialog. On
    Android, **Share** opens the system share sheet with the week's caption through a small
    `MethodChannel` (`accrue/share`) in `MainActivity.kt` — no plugin, so the symlink limit
-   does not apply. Web and desktop have no share target, so the caption is copied to the clipboard
-   there and the snackbar says so. Exporting the poster as an image still needs a plugin.
+   does not apply. Where no share target exists the caption goes to the clipboard and the
+   snackbar says so. Exporting the poster as an image still needs a plugin.
 3. **Large count targets collapse the dot row.** Up to 60 units are drawn as dots; above that
    (8,000 steps) the disc becomes a proportional rail, so the target stays legible.
 4. **Habit marks are a full icon library or a text badge.** `MarkPickerScreen` searches all 1,865
@@ -122,10 +124,29 @@ the device.
   under the row (chevron flips, selected option in the accent with a check) and closes on pick or
   a second tap; only one is open at a time. Reminders and reminder time are unchanged.
 - **About is a screen**, pushed from the profile row, and the version and studio strings live in
-  `lib/screens/about_screen.dart` (`appVersion = '2.1'`, `studioName = 'Wrong Turn'`). The page
+  `lib/screens/about_screen.dart` (`appVersion = '2.3'`, `studioName = 'Wrong Turn'`). The page
   credits the studio under the version and in the footer, and the Android launcher label is
   "Accrue".
 - **Distracting apps rows toggle on tap** anywhere in the row, not only on the switch.
+- **Updates are manual.** Nothing polls. The profile's corner button spins while
+  `UpdateController.check()` reads `api.github.com/repos/asterxsk/accrue/releases`, turns into an
+  accent download glyph when a newer tag exists, and otherwise shows an accent check plus "No
+  updates" for two seconds before settling back to the refresh glyph; it also opens the Updates
+  page, which lists earlier releases and downloads on demand. The APK streams into
+  `cacheDir/updates` with progress, then must match the release asset's `digest` SHA-256 and byte
+  size before the install button appears — that check exists because a truncated transfer is what
+  Android reports as "problem parsing the package". The native side (`installApk`) opens the
+  unknown-sources settings page on first use and otherwise hands the file to `ACTION_VIEW` through
+  `${applicationId}.fileprovider`.
+- **Completing a habit throws confetti** from an `OverlayEntry` above all routes for 1.5 s and
+  plays `assets/sounds/complete.wav`. Both hang off `HabitStore.celebration`, a `ValueNotifier<int>`
+  that `_mutate` bumps only when a habit crosses from not-done to done on today, so a row tap, a
+  `+`, a typed count, a finished timer and the routine runner all trigger it exactly once.
+- **Accessibility access is a row**, not a switch: the grant lives in system settings and Android
+  can drop it after an update or a stretch of disuse. The row reports `isEnabled` on load and on
+  resume, and opens `ACTION_ACCESSIBILITY_SETTINGS`. `FocusBlocking.canQuery` short-circuits the
+  channel under `flutter test`, where the 4-second timeout would otherwise outlive the tree as a
+  pending timer.
 
 ## Verification
 
@@ -143,6 +164,13 @@ the device.
   left"), countdown ticking (4 → 3 min), pill opening the app and lifting the overlay, overlay
   returning when Clock came back, and cleared when the timer paused. `Add time` picker confirmed
   1h 37m + 1h 25m = 3h 2m. About shows Version 2.1. Screenshot: `screenshots/20-focus-blocked.png`.
+- Release APK (2.3.0) signed with the stable key installed over the previous build and walked on the
+  emulator after the wheel picker, share poster, updater and celebration changes: hour wheel wraps
+  both ways, 12-hour mapping matches the label, *Add time* opens at 00:00:00 on three wheels,
+  checking from the profile corner spins → accent check + "No updates. You are on the latest build."
+  for two seconds → back to the refresh glyph, ticking a habit throws confetti and chimes, and
+  *Accessibility access* reads Off then opens the system Accessibility page listing "Accrue focus
+  blocking".
 
 ## Repository and releases
 

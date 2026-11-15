@@ -46,6 +46,8 @@ and streak lives in local storage on the device.
   opt out.
 - **Share poster.** A 4:5 card of the week — the bars, the totals and a projection of where the
   current pace leads. Share sends its numbers as text.
+- **A small celebration.** Finishing a habit throws a burst of confetti and a short chime, whichever
+  way it was completed.
 
 ## Install
 
@@ -92,6 +94,7 @@ installed copy.
 | `lib/widgets` | Shared control set, generated Lucide library, dialogs, wheel picker, heat map, share poster, brand mark |
 | `lib/util/focus.dart` + `android/.../FocusAccessibilityService.kt` | Focus-blocking channel, app list, overlay |
 | `lib/util/reminders.dart` | Per-habit daily notification scheduling |
+| `lib/util/updates.dart` | GitHub release lookup, verified APK download, install hand-off |
 | `tool/gen_icons.py` | Regenerates `lib/widgets/icon_library.dart` from a local `lucide-static` tree |
 | `tool/demo_main.dart` | Dark demo entrypoint used for the README captures |
 | `tool/export_brand.py` | Exports the in-app enso mark to `docs/brand/accrue-enso.svg` |

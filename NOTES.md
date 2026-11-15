@@ -1,8 +1,7 @@
 # Implementation notes — habit tracker
 
-What the app is: a Flutter build of the attached design prototype
-(`design/habit-tracker-prototype.html`, kept verbatim for reference). Parchment light theme and a
-tuned dark theme, clay accent, serif display type, bottom pill nav. Check / counted / timed habits,
+What the app is: an Android habit tracker, built in Flutter from a design prototype. Parchment
+light theme and a tuned dark theme, clay accent, serif display type, bottom pill nav. Check / counted / timed habits,
 routines as ordered habit sets, week insights, local profile, share poster. Everything is stored on
 the device.
 
@@ -18,8 +17,7 @@ the device.
 | `lib/app_nav.dart` | `AppNav` + `AppNavScope` so pushed screens can switch tabs |
 | `lib/widgets/icon_library.dart` | Generated: 1,865 Lucide icon bodies + sorted names (`tool/gen_icons.py` regenerates it) |
 | `tool/gen_icons.py` | Converts a local `lucide-static` package into `icon_library.dart` |
-| `test/widget_test.dart` | 23 unit/widget tests |
-| `design/habit-tracker-prototype.html` | The prototype this build follows |
+| `test/widget_test.dart` | 29 unit/widget tests |
 | `screenshots/` | 390×867 dark Android captures (01–11), plus the Android focus overlay at 1080×2400 |
 
 ## Design facts encoded in the theme
@@ -132,10 +130,7 @@ the device.
 ## Verification
 
 - `flutter analyze` — no issues.
-- `flutter test` — 23/23 pass (the profile test now walks the Appearance pop-up).
-- `flutter build web --release` served locally and captured at 390×844 in Chrome: onboarding (all
-  three steps), Today, counter detail, timer, routine run, new habit, habit ideas, Insights,
-  Routines, Profile, share poster, plus dark Profile and dark Insights.
+- `flutter test` — 29/29 pass (the profile test now walks the Appearance pop-up).
 - Debug APK installed on the Android 15 emulator and walked end to end: onboarding, check/count/timer,
   counter detail, routine runner, rename/create/delete, reminder time, week start, appearance, the
   Android share sheet, and state after a force-stop and relaunch.
@@ -152,10 +147,9 @@ the device.
 ## Repository and releases
 
 - The repo is `github.com/asterxsk/accrue`; the Android package is `com.wrongturn.accrue` and the
-  display name is **Accrue** (launcher label, About, share subject, web manifest, Windows metadata).
-- Icons come from `C:/Users/p/Downloads/accrue-enso-icon` (clay enso, transparent): Android
-  mipmaps + adaptive icon, web icons/favicon, `windows/runner/resources/app_icon.ico`, and
-  `assets/branding/enso.png` for the About header.
+  display name is **Accrue** (launcher label, About, share subject).
+- Icons come from `C:/Users/p/Downloads/accrue-enso-icon` (clay enso, transparent): Android mipmaps and the adaptive
+  icon; the in-app mark is `lib/widgets/brand_mark.dart`.
 - `.github/workflows/release.yml` builds a release APK on tag `v*` or `workflow_dispatch` and
   attaches it as `accrue-<version>.apk`.
 - **Stable signing.** `android/app/build.gradle.kts` reads `android/key.properties` (git-ignored)

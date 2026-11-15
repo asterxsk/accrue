@@ -13,7 +13,7 @@ timed — plus routines that are simply habits in order, and reports the week ba
 figure, seven bars and the streaks still running. A small local profile and a share poster round it
 out. Data lives on the device; there is no account, no sync, no network.
 
-Built with Flutter (Dart 3.13) for web, Android and iOS, styled to the Claude design system:
+Built with Flutter (Dart 3.13) for Android, styled to the Claude design system:
 parchment light theme and a tuned dark theme, clay accent, serif display type, floating pill
 navigation, onboarding on first launch.
 
@@ -272,7 +272,7 @@ Nothing destructive happens without the app's own dialog and a destructive confi
 **What.** **Share stats** opens a dialog with a 4:5 poster: the week range, name, completion percent
 with trend, four stat tiles (today, best streak, habits, routines), the week's bars and the top
 streaks. **Share** opens the system share sheet (Android, via a method channel) carrying the week's
-caption as text. Where no share target exists (web, desktop) it copies the caption and the snackbar
+caption as text. Where no share target exists it copies the caption and the snackbar
 says so. **Cancel** closes.
 
 **Rules.** The poster is drawn natively, not a screenshot. No image file is produced (a PNG export
@@ -346,7 +346,7 @@ The picker, the overlay and the accessibility grant live outside Flutter: channe
 | Performance | Idle app runs no ticker. A running timer costs one 1s tick. Store writes are async and non-blocking. |
 | Reliability | No day is lost across midnight, resume, kill or corrupt storage. Unreadable data is preserved. |
 | Storage | Single `shared_preferences` string; full snapshot per mutation. |
-| Platforms | Flutter web, Android, iOS. `flutter build web --release` verified; native builds not produced. |
+| Platforms | Android 7.0+ (API 24). `flutter build apk --release` shipped from CI. |
 | Quality gate | `flutter analyze` clean; `flutter test` 19/19. |
 | Privacy | No network calls, no analytics, no account. Dependencies: `flutter_svg`, `shared_preferences`. Android share uses a `MethodChannel` intent, not a plugin. |
 | Localisation | English only; all user-facing strings route through widgets/`Fmt`. |
@@ -366,7 +366,7 @@ The picker, the overlay and the accessibility grant live outside Flutter: channe
 7. **No import/export** despite the "Data & export" label.
 8. **One timer at a time**, app-wide.
 9. **Adding a plugin fails on the build machine** ("Building with plugins requires symlink support" —
-   Developer Mode is off). `flutter pub get`, analysis, tests and web builds still work.
+   Developer Mode is off). `flutter pub get`, analysis, tests and Android builds still work.
 10. Not a git repository as of this document.
 
 ---

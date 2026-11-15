@@ -4,13 +4,12 @@
 
 <h1 align="center">Accrue</h1>
 
-<p align="center"><em>A calm, local-first habit tracker for phone and web.</em></p>
+<p align="center"><em>A calm, local-first habit tracker for Android.</em></p>
 
 <p align="center">
   <a href="https://github.com/asterxsk/accrue/releases/latest"><img src="https://img.shields.io/github/v/release/asterxsk/accrue?color=C96442&label=release" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/Android-7.0%2B-C96442" alt="Android 7.0+">
   <img src="https://img.shields.io/badge/Flutter-3.47.9-C96442" alt="Flutter 3.47.9">
-  <img src="https://img.shields.io/badge/data-on%20device%20only-C96442" alt="Data stays on device">
 </p>
 
 ---
@@ -41,7 +40,8 @@ and streak lives in local storage on the device.
 - **Focus blocking (Android).** While a timer habit runs, an accessibility overlay covers apps you
   have flagged as distracting, with a countdown and a way back into Accrue. Each timer habit can
   opt out.
-- **Share poster.** Weeks can be exported as an image, drawn locally.
+- **Share poster.** A 4:5 card of the week — the bars, the totals and a projection of where the
+  current pace leads. Share sends its numbers as text.
 
 ## Install
 
@@ -49,14 +49,11 @@ Download the latest APK from [Releases](https://github.com/asterxsk/accrue/relea
 open it on an Android 7.0 or newer device. Releases are signed with a stable release key, so a
 newer version installs straight over the installed one.
 
-Accrue also builds for the web: `flutter build web --release` writes a static bundle to
-`build/web`, which runs entirely in the browser.
-
 ## Build from source
 
 ```sh
 flutter pub get
-flutter run -d chrome      # or an attached device / emulator
+flutter run        # with a device or emulator attached
 ```
 
 Requires Flutter 3.47.9 (Dart 3.13). `flutter analyze` and `flutter test` should both be clean.
@@ -94,12 +91,10 @@ installed copy.
 | `tool/gen_icons.py` | Regenerates `lib/widgets/icon_library.dart` from a local `lucide-static` tree |
 | `tool/demo_main.dart` | Dark demo entrypoint used for the README captures |
 | `tool/export_brand.py` | Exports the in-app enso mark to `docs/brand/accrue-enso.svg` |
-| `docs/` | [Product brief](docs/PRD.md) and brand assets |
-| `design/` | The prototype this build follows |
+| `docs/` | [Product brief](docs/PRD.md) and the brand mark |
 | `screenshots/` | Dark captures of the built Android app at 390×867, plus the Android focus overlay at 1080×2400 |
 
-Deliberate divergences from the prototype (no photo picking, caption-only sharing, no seeded demo
-data) are recorded in [NOTES.md](NOTES.md).
+Deliberate divergences from the prototype are recorded in [NOTES.md](NOTES.md).
 
 ## Brand
 

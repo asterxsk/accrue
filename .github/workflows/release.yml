@@ -139,6 +139,25 @@ jobs:
           sha256sum "$apk" | awk '{ print $1 }' > "$apk.sha256"
           ls -lh dist
 
+      # Signing state is recorded with the run, so every release shows which
+      # schemes it carries without opening the APK.
+      - name: Record the signature
+        run: |
+          build_tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          {
+            echo "### Accrue ${{ steps.version.outputs.name }} (versionCode ${{ steps.version.outputs.code }})"
+            echo ""
+            echo '```'
+            "$build_tools/apksigner" verify --min-sdk-version 23 -v \
+              "dist/accrue-${{ steps.version.outputs.name }}.apk" |
+              grep -E "Verified using v[0-9.]* scheme"
+            "$build_tools/apksigner" verify --min-sdk-version 23 --print-certs \
+              "dist/accrue-${{ steps.version.outputs.name }}.apk" |
+              grep "SHA-256 digest"
+            echo "sha256 $(cat dist/accrue-${{ steps.version.outputs.name }}.apk.sha256)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:

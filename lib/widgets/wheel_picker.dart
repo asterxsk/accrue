@@ -33,13 +33,20 @@ class WheelPicker extends StatefulWidget {
 }
 
 class _WheelPickerState extends State<WheelPicker> {
+  /// The value list is laid out this many times end to end so a flick in
+  /// either direction never reaches an edge; the selected value is the item
+  /// index modulo the list length, which is what makes the wheel wrap.
+  static const int _repeats = 401;
+
   late final FixedExtentScrollController _controller;
   late int _index = widget.selected.clamp(0, widget.values.length - 1);
+
+  int get _base => widget.values.length * (_repeats ~/ 2);
 
   @override
   void initState() {
     super.initState();
-    _controller = FixedExtentScrollController(initialItem: _index);
+    _controller = FixedExtentScrollController(initialItem: _base + _index);
   }
 
   @override
@@ -47,7 +54,7 @@ class _WheelPickerState extends State<WheelPicker> {
     super.didUpdateWidget(old);
     if (widget.selected != _index) {
       _index = widget.selected.clamp(0, widget.values.length - 1);
-      if (_controller.hasClients) _controller.jumpToItem(_index);
+      if (_controller.hasClients) _controller.jumpToItem(_base + _index);
     }
   }
 
@@ -91,20 +98,25 @@ class _WheelPickerState extends State<WheelPicker> {
                 parent: ClampingScrollPhysics(),
               ),
               onSelectedItemChanged: (index) {
-                setState(() => _index = index);
-                widget.onChanged(index);
+                final value = index % widget.values.length;
+                if (value == _index) return;
+                setState(() => _index = value);
+                widget.onChanged(value);
               },
               childDelegate: ListWheelChildBuilderDelegate(
-                childCount: widget.values.length,
-                builder: (context, index) => Center(
-                  child: Text(
-                    widget.values[index],
-                    style: AppType.count.copyWith(
-                      fontSize: 20,
-                      color: index == _index ? colors.text : colors.faint,
+                childCount: widget.values.length * _repeats,
+                builder: (context, index) {
+                  final value = index % widget.values.length;
+                  return Center(
+                    child: Text(
+                      widget.values[value],
+                      style: AppType.count.copyWith(
+                        fontSize: 20,
+                        color: value == _index ? colors.text : colors.faint,
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
             // Fade the top and bottom rows into the panel so the curved

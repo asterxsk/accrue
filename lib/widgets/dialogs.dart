@@ -516,8 +516,8 @@ Future<({int hour, int minute})?> timeDialog(
   var nextHour = hour;
   var nextMinute = minute;
   final hours = [
-    for (var h = 0; h < 24; h++)
-      clock24 ? h.toString().padLeft(2, '0') : '${h % 12 == 0 ? 12 : h % 12}',
+    for (var h = 0; h < (clock24 ? 24 : 12); h++)
+      clock24 ? h.toString().padLeft(2, '0') : '${h == 0 ? 12 : h}',
   ];
   return showDialog<({int hour, int minute})>(
     context: context,
@@ -537,14 +537,12 @@ Future<({int hour, int minute})?> timeDialog(
                   children: [
                     WheelPicker(
                       values: hours,
-                      selected: clock24
-                          ? nextHour
-                          : (nextHour % 12 == 0 ? 11 : nextHour % 12 - 1),
+                      selected: clock24 ? nextHour : nextHour % 12,
                       semanticLabel: 'Hour',
                       onChanged: (index) => setState(() {
                         nextHour = clock24
                             ? index
-                            : (index + 1) % 12 + (pm ? 12 : 0);
+                            : index + (pm ? 12 : 0);
                       }),
                     ),
                     const SizedBox(width: 4),
@@ -615,7 +613,7 @@ Future<int?> durationDialog(
   required String title,
   String? description,
   int hour = 0,
-  int minute = 30,
+  int minute = 0,
   int second = 0,
 }) {
   var nextHour = hour;
@@ -637,41 +635,44 @@ Future<int?> durationDialog(
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _TimeUnit(
-                      value: nextHour,
-                      label: 'Hour',
-                      onUp: () =>
-                          setState(() => nextHour = (nextHour + 1) % 24),
-                      onDown: () =>
-                          setState(() => nextHour = (nextHour - 1 + 24) % 24),
+                    WheelPicker(
+                      values: _twoDigits(24),
+                      selected: nextHour,
+                      semanticLabel: 'Hours',
+                      onChanged: (index) => setState(() => nextHour = index),
                     ),
-                    const SizedBox(width: 8),
-                    _TimeUnit(
-                      value: nextMinute,
-                      label: 'Minute',
-                      onUp: () =>
-                          setState(() => nextMinute = (nextMinute + 5) % 60),
-                      onDown: () => setState(
-                        () => nextMinute = (nextMinute - 5 + 60) % 60,
-                      ),
+                    _TimeColon(colors: colors),
+                    WheelPicker(
+                      values: _twoDigits(60),
+                      selected: nextMinute,
+                      semanticLabel: 'Minutes',
+                      onChanged: (index) => setState(() => nextMinute = index),
                     ),
-                    const SizedBox(width: 8),
-                    _TimeUnit(
-                      value: nextSecond,
-                      label: 'Second',
-                      onUp: () =>
-                          setState(() => nextSecond = (nextSecond + 15) % 60),
-                      onDown: () => setState(
-                        () => nextSecond = (nextSecond - 15 + 60) % 60,
-                      ),
+                    _TimeColon(colors: colors),
+                    WheelPicker(
+                      values: _twoDigits(60),
+                      selected: nextSecond,
+                      semanticLabel: 'Seconds',
+                      onChanged: (index) => setState(() => nextSecond = index),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _WheelLabel('HOURS'),
+                    SizedBox(width: 24),
+                    _WheelLabel('MINUTES'),
+                    SizedBox(width: 24),
+                    _WheelLabel('SECONDS'),
                   ],
                 ),
                 const SizedBox(height: 18),
                 Text(
                   total == 0
                       ? 'Pick at least a second.'
-                      : 'Adds ${Fmt.duration(total)} to today.',
+                      : 'Adds ${_durationLabel(total)} to today.',
                   style: AppType.micro.copyWith(color: colors.faint),
                   textAlign: TextAlign.center,
                 ),
@@ -699,60 +700,63 @@ Future<int?> durationDialog(
   );
 }
 
-class _TimeUnit extends StatelessWidget {
-  const _TimeUnit({
-    required this.value,
-    required this.label,
-    required this.onUp,
-    required this.onDown,
-  });
+/// "00"…"23" or "00"…"59" — the rows of a wheel column.
+List<String> _twoDigits(int count) => [
+  for (var i = 0; i < count; i++) i.toString().padLeft(2, '0'),
+];
 
-  final int value;
+/// "1h 5m 30s" — seconds included, unlike [Fmt.duration], which rounds to
+/// whole minutes for a habit's logged total.
+String _durationLabel(int seconds) {
+  final h = seconds ~/ 3600;
+  final m = (seconds % 3600) ~/ 60;
+  final s = seconds % 60;
+  return [
+    if (h > 0) '${h}h',
+    if (m > 0) '${m}m',
+    if (s > 0) '${s}s',
+  ].join(' ');
+}
+
+class _TimeColon extends StatelessWidget {
+  const _TimeColon({required this.colors});
+
+  final AppColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 24,
+      child: Center(
+        child: Text(
+          ':',
+          style: AppType.count.copyWith(fontSize: 20, color: colors.faint),
+        ),
+      ),
+    );
+  }
+}
+
+class _WheelLabel extends StatelessWidget {
+  const _WheelLabel(this.label);
+
   final String label;
-  final VoidCallback onUp;
-  final VoidCallback onDown;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return Column(
-      children: [
-        AppIconButton(
-          icon: 'plus',
-          size: 44,
-          iconSize: 16,
-          filled: true,
-          label: '$label up',
-          onTap: onUp,
-        ),
-        SizedBox(
-          width: 76,
-          height: 52,
-          child: Center(
-            child: Text(
-              value.toString().padLeft(2, '0'),
-              style: AppType.statLine.copyWith(color: colors.text),
-            ),
-          ),
-        ),
-        AppIconButton(
-          icon: 'minus',
-          size: 44,
-          iconSize: 16,
-          filled: true,
-          label: '$label down',
-          onTap: onDown,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label.toUpperCase(),
+    return SizedBox(
+      width: 68,
+      child: Center(
+        child: Text(
+          label,
           style: AppType.eyebrow.copyWith(
             fontSize: 11,
             letterSpacing: 0.88,
             color: colors.muted,
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -866,8 +870,8 @@ Future<ShareOutcome?> shareDialog(
         const SizedBox(height: 10),
         Text(
           "Opens the system share sheet with this week's numbers as text. "
-          'On the web the caption goes to the clipboard instead. The poster '
-          'is previewed here, not exported as an image.',
+          'Without a share target the caption goes to the clipboard instead. '
+          'The poster is previewed here, not exported as an image.',
           style: AppType.micro.copyWith(color: AppColors.of(context).faint),
           textAlign: TextAlign.center,
         ),

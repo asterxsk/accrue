@@ -186,7 +186,13 @@ the device.
 - Icons come from `C:/Users/p/Downloads/accrue-enso-icon` (clay enso, transparent): Android mipmaps and the adaptive
   icon; the in-app mark is `lib/widgets/brand_mark.dart`.
 - `.github/workflows/release.yml` builds a release APK on tag `v*` or `workflow_dispatch` and
-  attaches it as `accrue-<version>.apk`.
+  attaches it as `accrue-<version>.apk`, with `accrue-<version>.apk.sha256` beside it.
+- **Both signature schemes.** AGP drops the v1 (JAR) signature once `minSdk` reaches 24, and that
+  v2-only APK is what a real phone can answer with "There was a problem parsing the package" even
+  though the build is intact. `enableV1Signing` and `enableV2Signing` are both on, and the workflow
+  refuses an APK where either scheme fails to verify, where the certificate is not the release key,
+  where the package, versionName or versionCode disagree with `pubspec.yaml`, where the manifest's
+  `minSdkVersion` is not 24, or where `zipalign -c -p 4` fails.
 - **Stable signing.** `android/app/build.gradle.kts` reads `android/key.properties` (git-ignored)
   and signs with the release keystore when it exists, else falls back to the debug key. CI writes
   that file from secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`)

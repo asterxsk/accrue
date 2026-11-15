@@ -96,7 +96,25 @@ jobs:
             echo "::error::APK is not signed with the release key."
             exit 1
           }
+          # Both schemes must verify: v2 for Android 7+, v1 for installers that
+          # still read the JAR signature. A v2-only APK is what makes a real
+          # phone answer "There was a problem parsing the package".
+          verify=$("$build_tools/apksigner" verify --min-sdk-version 23 -v "$apk")
+          echo "$verify"
+          echo "$verify" | grep -q "Verified using v1 scheme (JAR signing): true" || {
+            echo "::error::APK has no v1 signature; older installers cannot parse it."
+            exit 1
+          }
+          echo "$verify" | grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" || {
+            echo "::error::APK has no v2 signature."
+            exit 1
+          }
 
+          "$build_tools/aapt2" dump xmltree --file AndroidManifest.xml "$apk" > manifest.txt
+          grep -q 'minSdkVersion(0x0101020c)=24' manifest.txt || {
+            echo "::error::minSdk moved away from Android 7.0."
+            exit 1
+          }
           "$build_tools/aapt2" dump badging "$apk" > badging.txt
           grep -q "package: name='com.wrongturn.accrue'" badging.txt || {
             echo "::error::Unexpected package name."
@@ -110,17 +128,15 @@ jobs:
             echo "::error::APK versionCode does not match pubspec ($EXPECTED_CODE)."
             exit 1
           }
-          grep -q "minSdkVersion:'24'" badging.txt || {
-            echo "::error::minSdk moved away from Android 7.0."
-            exit 1
-          }
-          echo "Package, version and minSdk OK."
+          "$build_tools/zipalign" -c -p 4 "$apk"
+          echo "Package, version, minSdk, alignment and both signatures OK."
 
       - name: Name the artifact
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk \
-             "dist/accrue-${{ steps.version.outputs.name }}.apk"
+          apk="dist/accrue-${{ steps.version.outputs.name }}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$apk"
+          sha256sum "$apk" | awk '{ print $1 }' > "$apk.sha256"
           ls -lh dist
 
       - name: Publish release
@@ -132,9 +148,13 @@ jobs:
             Accrue ${{ steps.version.outputs.name }} (versionCode ${{ steps.version.outputs.code }}).
 
             Install `accrue-${{ steps.version.outputs.name }}.apk` on Android 7.0 or newer.
+            The `.sha256` file beside it is the checksum of the download — a file that does not
+            match is a truncated transfer, which Android reports as "problem parsing the package".
             Release builds are signed with the project's release key, so later versions install
             over this one without uninstalling. Builds published before v2.1.1 used a CI debug
             key and cannot update to this line — uninstall once, then updates are stable.
-          files: dist/accrue-${{ steps.version.outputs.name }}.apk
+          files: |
+            dist/accrue-${{ steps.version.outputs.name }}.apk
+            dist/accrue-${{ steps.version.outputs.name }}.apk.sha256
           generate_release_notes: true
           fail_on_unmatched_files: true

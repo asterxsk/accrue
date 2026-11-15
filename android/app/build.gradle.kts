@@ -51,6 +51,12 @@ android {
                 storePassword = keystoreProperties["storePassword"] as String
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
+                // AGP omits the v1 (JAR) signature when minSdk is 24 or above,
+                // because the platform only needs v2 there. Some installers on
+                // real devices still read the JAR signature and report the APK
+                // as unparsable, so sign both ways.
+                enableV1Signing = true
+                enableV2Signing = true
             }
         }
     }

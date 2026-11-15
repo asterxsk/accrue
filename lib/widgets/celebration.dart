@@ -80,10 +80,11 @@ class _ConfettiBurstState extends State<_ConfettiBurst>
     return [
       for (var i = 0; i < 70; i++)
         _Piece(
-          // Fired from the lower middle, fanned upward.
-          originX: 0.5 + (random.nextDouble() - 0.5) * 0.18,
-          velocityX: (random.nextDouble() - 0.5) * 1.5,
-          velocityY: -(0.7 + random.nextDouble() * 0.75),
+          // Popped from the upper middle, fanned down and outward.
+          originX: 0.5 + (random.nextDouble() - 0.5) * 0.14,
+          originY: 0.02 + random.nextDouble() * 0.05,
+          velocityX: (random.nextDouble() - 0.5) * 1.4,
+          velocityY: 0.12 + random.nextDouble() * 0.5,
           spin: (random.nextDouble() - 0.5) * 14,
           size: 3.5 + random.nextDouble() * 5,
           delay: random.nextDouble() * 0.18,
@@ -119,6 +120,7 @@ class _ConfettiBurstState extends State<_ConfettiBurst>
 class _Piece {
   const _Piece({
     required this.originX,
+    required this.originY,
     required this.velocityX,
     required this.velocityY,
     required this.spin,
@@ -129,6 +131,7 @@ class _Piece {
   });
 
   final double originX;
+  final double originY;
   final double velocityX;
   final double velocityY;
   final double spin;
@@ -153,8 +156,7 @@ class _ConfettiPainter extends CustomPainter {
       if (t == 0) continue;
       // Position in fractions of the height, so it reads the same anywhere.
       final x = (piece.originX + piece.velocityX * t) * size.width;
-      final y =
-          (1.0 + (piece.velocityY + 1.1 * t) * t) * size.height;
+      final y = (piece.originY + (piece.velocityY + 1.1 * t) * t) * size.height;
       final fade = (1 - t).clamp(0.0, 1.0);
       paint.color = piece.color.withValues(alpha: fade * 0.9);
       canvas.save();

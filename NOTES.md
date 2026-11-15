@@ -124,7 +124,7 @@ the device.
   under the row (chevron flips, selected option in the accent with a check) and closes on pick or
   a second tap; only one is open at a time. Reminders and reminder time are unchanged.
 - **About is a screen**, pushed from the profile row, and the version and studio strings live in
-  `lib/screens/about_screen.dart` (`appVersion = '2.3'`, `studioName = 'Wrong Turn'`). The page
+  `lib/screens/about_screen.dart` (`appVersion = '2.4'`, `studioName = 'Wrong Turn'`). The page
   credits the studio under the version and in the footer, and the Android launcher label is
   "Accrue".
 - **Distracting apps rows toggle on tap** anywhere in the row, not only on the switch.

@@ -81,8 +81,9 @@ jobs:
         env:
           EXPECTED_VERSION: ${{ steps.version.outputs.name }}
           EXPECTED_CODE: ${{ steps.version.outputs.code }}
-          # SHA-256 of the release certificate, so a stray debug key fails.
-          EXPECTED_CERT: 09fbb2aff8aa99cb7633bfe08180dea1f8364119e556b50252b127c7a11b80dc
+          # SHA-256 of the release certificate (accrue-v2, rotated 2026-11-18), so a stray
+          # debug key or the retired key fails.
+          EXPECTED_CERT: 53dfdd44b0377a07746e4c3ed8540bcd95038670d13aaeb0a3a8b8622d78182c
         run: |
           apk=build/app/outputs/flutter-apk/app-release.apk
           test -f "$apk"

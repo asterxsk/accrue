@@ -172,6 +172,11 @@ jobs:
             Release builds are signed with the project's release key, so later versions install
             over this one without uninstalling. Builds published before v2.1.1 used a CI debug
             key and cannot update to this line — uninstall once, then updates are stable.
+
+            **v2.5.0 changed the release signing key.** The previous key was retired after it was
+            exposed, so this build cannot install over v2.2.1–v2.4.2 and those versions cannot
+            update to it. Export your data first, uninstall the old build, then install this APK;
+            every release from v2.5.0 onward updates in place again.
           files: |
             dist/accrue-${{ steps.version.outputs.name }}.apk
             dist/accrue-${{ steps.version.outputs.name }}.apk.sha256

@@ -79,9 +79,13 @@ verifies the signature and publishes `accrue-<version>.apk`.
 
 Release builds are signed with the project's release keystore so versions install over each other.
 The keystore and its passwords live in repository secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`,
-`KEY_ALIAS`, `KEY_PASSWORD`); locally, `android/key.properties` points at the keystore outside the
-repo. Both are git-ignored. **Back the keystore up** — without it, no future release can update an
-installed copy.
+`KEY_ALIAS`, `KEY_PASSWORD`). A local release build only picks up that key when an untracked
+`android/key.properties` points at it; without that file Gradle falls back to the debug key, which
+the workflow's certificate check rejects. **Back the keystore up** — without it, no future release
+can update an installed copy.
+
+The signing key was rotated on 2026-11-18 after the previous one was exposed. v2.5.0 is the first
+build on the new key, so it cannot install over v2.2.1–v2.4.2: export, uninstall, then install.
 
 ## Project layout
 

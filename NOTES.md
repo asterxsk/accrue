@@ -204,9 +204,13 @@ the device.
   that file from secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`)
   before building; the workflow fails when the keystore secret is missing so an unsigned debug-key
   build cannot slip out. Certificate: `CN=Wrong Turn, OU=Accrue`, SHA-256
-  `09fbb2aff8aa99cb7633bfe08180dea1f8364119e556b50252b127c7a11b80dc`. Local keystore:
-  `C:/Users/p/.accrue/accrue-release.jks` (password in `keystore-password.txt` beside it). Back it
-  up — losing it ends update-over-install for everyone.
-- v2.1.1 is the first build on that key: installs of 2.1.0 (debug-key signed) must be uninstalled
-  once.
+  `53dfdd44b0377a07746e4c3ed8540bcd95038670d13aaeb0a3a8b8622d78182c`, alias `accrue-v2`,
+  RSA-4096, valid to 2054-04-05. Local keystore: `C:/Users/p/.accrue/accrue-release-v2.jks`, with
+  both passwords in `accrue-release-v2.credentials.dpapi` (Windows DPAPI, bound to this user and
+  machine — export it with `ConvertFrom-SecureString` on this account only). Back both up — losing
+  them ends update-over-install for everyone.
+- The key was rotated on 2026-11-18 after the previous keystore and its passwords were exposed.
+  The old key (`accrue`, SHA-256 `09fb…80dc`) is retired and its local copies are deleted.
+- v2.1.1 is the first build on the old key; v2.5.0 is the first on the current one. Both are
+  install breaks: uninstall the previous build once, then updates are stable again.
 - Data key stays `habit_tracker.state.v2` so installs from before the rename keep their habits.

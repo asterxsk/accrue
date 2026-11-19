@@ -54,7 +54,7 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
   late int _target;
   late double _step;
   late int? _reminderMinutes;
-  late bool _blockDistractions;
+  late TimerMode _timerMode;
   late bool _badge;
   late String _badgeText;
   late String _badgeFg;
@@ -77,7 +77,7 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
     _target = habit?.target ?? 1;
     _step = habit?.step ?? 1;
     _reminderMinutes = habit?.reminderMinutes;
-    _blockDistractions = habit?.blockDistractions ?? true;
+    _timerMode = habit?.timerMode ?? TimerMode.stopwatch;
     _badge = habit?.badge ?? false;
     _badgeText = habit?.badgeText ?? '';
     _badgeFg = habit?.badgeFg ?? '#FAF9F5';
@@ -227,7 +227,7 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
         badgeEnd: _badgeEnd,
         step: _step,
         reminderMinutes: _reminderMinutes,
-        blockDistractions: _blockDistractions,
+        timerMode: _timerMode,
       );
       Navigator.of(context).pop();
       return;
@@ -248,7 +248,7 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
       step: _step,
       reminderMinutes: _reminderMinutes,
       updateReminder: true,
-      blockDistractions: _blockDistractions,
+      timerMode: _timerMode,
     );
     if (!mounted) return;
     if (widget.fromDetail && kindChanged) {
@@ -414,6 +414,35 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
                       ),
                     if (_kind != HabitKind.check) ...[
                       const SizedBox(height: 18),
+                      if (_kind == HabitKind.timer) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Timer type',
+                                style: AppType.body.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: colors.text,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            SizedBox(
+                              width: 190,
+                              child: SegmentedToggle(
+                                options: const ['Stopwatch', 'Timer'],
+                                selected: _timerMode.label,
+                                onChanged: (value) => setState(
+                                  () => _timerMode = value == 'Timer'
+                                      ? TimerMode.timer
+                                      : TimerMode.stopwatch,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
@@ -551,30 +580,6 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
                       'notifications are off.',
                       style: AppType.micro.copyWith(color: colors.faint),
                     ),
-                    if (_kind == HabitKind.timer) ...[
-                      SectionTitle(
-                        'Focus',
-                        margin: const EdgeInsets.only(top: 26),
-                      ),
-                      const SizedBox(height: 4),
-                      SettingsRow(
-                        label: 'Block distracting apps',
-                        value: _blockDistractions ? 'On' : 'Off',
-                        showChevron: false,
-                        trailing: AppSwitch(
-                          value: _blockDistractions,
-                          onChanged: (on) =>
-                              setState(() => _blockDistractions = on),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'While this timer runs on Android, the apps you '
-                        'flagged stay covered. Turn it off for runs, swims and '
-                        'anything away from the phone.',
-                        style: AppType.micro.copyWith(color: colors.faint),
-                      ),
-                    ],
                     if (_editing) ...[
                       const SizedBox(height: 22),
                       TextButton(

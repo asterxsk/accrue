@@ -1,8 +1,6 @@
 package com.wrongturn.accrue
 
-import android.content.ComponentName
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -14,7 +12,6 @@ import java.io.File
 
 class MainActivity : FlutterActivity() {
     private val shareChannel = "habit_tracker/share"
-    private val focusChannel = "habit_tracker/focus"
     private val updatesChannel = "habit_tracker/updates"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -34,48 +31,6 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "downloadDir" -> result.success(updateDir().absolutePath)
                     "installApk" -> installApk(call, result)
-                    else -> result.notImplemented()
-                }
-            }
-
-        MethodChannel(messenger, focusChannel)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "supported" -> result.success(true)
-                    "isEnabled" -> result.success(isFocusServiceEnabled())
-                    "openSettings" -> {
-                        try {
-                            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                            result.success(null)
-                        } catch (error: Exception) {
-                            result.error("unavailable", error.message, null)
-                        }
-                    }
-                    "installedApps" -> result.success(installedApps())
-                    "startFocus" -> {
-                        val habit = call.argument<String>("habit") ?: "Focus"
-                        val endsAt = call.argument<Number>("endsAt")?.toLong() ?: 0L
-                        val packages = call.argument<List<String>>("packages")
-                            ?: emptyList()
-                        FocusAccessibilityService.prefs(this).edit()
-                            .putBoolean(FocusAccessibilityService.KEY_ACTIVE, true)
-                            .putString(FocusAccessibilityService.KEY_HABIT, habit)
-                            .putLong(FocusAccessibilityService.KEY_ENDS, endsAt)
-                            .putStringSet(
-                                FocusAccessibilityService.KEY_PACKAGES,
-                                packages.toSet(),
-                            )
-                            .apply()
-                        FocusAccessibilityService.refresh()
-                        result.success(null)
-                    }
-                    "stopFocus" -> {
-                        FocusAccessibilityService.prefs(this).edit()
-                            .putBoolean(FocusAccessibilityService.KEY_ACTIVE, false)
-                            .apply()
-                        FocusAccessibilityService.refresh()
-                        result.success(null)
-                    }
                     else -> result.notImplemented()
                 }
             }
@@ -165,46 +120,5 @@ class MainActivity : FlutterActivity() {
         } catch (error: Exception) {
             result.error("unavailable", error.message, null)
         }
-    }
-
-    private fun isFocusServiceEnabled(): Boolean {        val enabled = Settings.Secure.getInt(
-            contentResolver,
-            Settings.Secure.ACCESSIBILITY_ENABLED,
-            0,
-        ) == 1
-        if (!enabled) return false
-        val services = Settings.Secure.getString(
-            contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-        ) ?: return false
-        val expected = ComponentName(
-            this,
-            FocusAccessibilityService::class.java,
-        ).flattenToString()
-        return services.split(':').any { it.equals(expected, ignoreCase = true) }
-    }
-
-    /** Launchable apps, one row per package, sorted by label. */
-    private fun installedApps(): List<Map<String, String>> {
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val manager = packageManager
-        val resolved = try {
-            manager.queryIntentActivities(intent, PackageManager.MATCH_ALL)
-        } catch (error: Exception) {
-            emptyList()
-        }
-        val rows = LinkedHashMap<String, String>()
-        for (info in resolved) {
-            val packageName = info.activityInfo?.packageName ?: continue
-            if (packageName == this.packageName) continue
-            val label = info.loadLabel(manager).toString().ifBlank { packageName }
-            val existing = rows[packageName]
-            if (existing == null || label.length < existing.length) {
-                rows[packageName] = label
-            }
-        }
-        return rows.entries
-            .sortedBy { it.value.lowercase() }
-            .map { mapOf("package" to it.key, "label" to it.value) }
     }
 }

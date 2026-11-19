@@ -292,11 +292,11 @@ Future<void> infoDialog(
     title: title,
     description: body,
     body: const SizedBox.shrink(),
-    labels: const ['Close'],
-    buttons: const ['Close'],
+    labels: const ['OK'],
+    buttons: const ['OK'],
     actions: dialogActions([
       AppButton(
-        label: 'Close',
+        label: 'OK',
         tone: AppButtonTone.secondary,
         expand: false,
         onPressed: () => Navigator.of(context).pop(),

@@ -7,7 +7,6 @@ import '../state/habit_store.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_type.dart';
 import '../theme/metrics.dart';
-import '../util/focus.dart';
 import '../util/format.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/dialogs.dart';
@@ -27,8 +26,8 @@ Future<void> openTimer(
   );
 }
 
-/// Running a timed habit. Starting it also arms focus blocking: Android draws
-/// a blocked screen over the chosen apps until the timer stops.
+/// Running a timed habit: a stopwatch counts the day's seconds up, a timer
+/// counts the daily goal down.
 class TimerScreen extends StatefulWidget {
   const TimerScreen({super.key, required this.store, required this.habitId});
 
@@ -40,80 +39,9 @@ class TimerScreen extends StatefulWidget {
 }
 
 class _TimerScreenState extends State<TimerScreen> {
-  bool _blocking = false;
-
   HabitStore get store => widget.store;
 
-  @override
-  void initState() {
-    super.initState();
-    store.addListener(_syncBlocking);
-    // A relaunch can land on a timer that is still running; re-arm blocking
-    // for the rest of its span instead of leaving the apps open.
-    final habit = store.habitById(widget.habitId);
-    if (habit != null &&
-        habit.blockDistractions &&
-        store.isRunning(habit) &&
-        store.blockedApps.isNotEmpty) {
-      _armBlocking(habit);
-    }
-  }
-
-  Future<void> _armBlocking(Habit habit) async {
-    if (!habit.blockDistractions || store.blockedApps.isEmpty) return;
-    final remaining = habit.target * 60 - store.liveSeconds(habit);
-    // Past the goal the timer keeps running, so blocking gets the same five
-    // minute floor instead of never arming.
-    _blocking = true;
-    final seconds = remaining > 0 ? remaining : 300;
-    await FocusBlocking.start(
-      habitName: habit.name,
-      endsAt: DateTime.now().add(Duration(seconds: seconds)),
-      packages: store.blockedApps,
-    );
-  }
-
-  @override
-  void dispose() {
-    store.removeListener(_syncBlocking);
-    super.dispose();
-  }
-
-  /// The store stops the timer from anywhere (day rollover, reset, a deleted
-  /// habit), so blocking follows it rather than the buttons.
-  void _syncBlocking() {
-    final habit = store.habitById(widget.habitId);
-    if (habit == null) {
-      if (_blocking) _stopBlocking();
-      return;
-    }
-    final wanted =
-        store.isRunning(habit) &&
-        habit.blockDistractions &&
-        store.blockedApps.isNotEmpty;
-    if (!wanted && _blocking) {
-      _stopBlocking();
-    } else if (wanted && !_blocking) {
-      _armBlocking(habit);
-    }
-  }
-
-  Future<void> _stopBlocking() async {
-    if (!_blocking) return;
-    _blocking = false;
-    await FocusBlocking.stop();
-  }
-
-  Future<void> _toggleTimer(Habit habit) async {
-    final wasRunning = store.isRunning(habit);
-    store.toggleTimer(habit);
-    if (wasRunning) {
-      await _stopBlocking();
-      return;
-    }
-    if (!habit.blockDistractions || store.blockedApps.isEmpty) return;
-    await _armBlocking(habit);
-  }
+  void _toggleTimer(Habit habit) => store.toggleTimer(habit);
 
   @override
   Widget build(BuildContext context) {
@@ -135,6 +63,10 @@ class _TimerScreenState extends State<TimerScreen> {
           final seconds = store.liveSeconds(habit);
           final running = store.isRunning(habit);
           final goalSeconds = habit.target * 60;
+          final countdown = habit.timerMode == TimerMode.timer;
+          final shown = countdown
+              ? math.max(0, goalSeconds - seconds)
+              : seconds;
           final progress = goalSeconds == 0
               ? 0.0
               : (seconds / goalSeconds).clamp(0.0, 1.0);
@@ -177,14 +109,16 @@ class _TimerScreenState extends State<TimerScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            Fmt.clock(seconds),
+                            Fmt.clock(shown),
                             style: AppType.timerClock.copyWith(
                               color: colors.text,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'of ${Fmt.minutes(habit.target)}',
+                            countdown
+                                ? 'left of ${Fmt.minutes(habit.target)}'
+                                : 'of ${Fmt.minutes(habit.target)}',
                             style: AppType.meta.copyWith(
                               color: colors.muted,
                             ),

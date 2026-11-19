@@ -1,3 +1,20 @@
+/// How a timed habit's clock reads. A stopwatch counts up; a timer counts the
+/// goal down. Both finish when the daily target is reached.
+enum TimerMode {
+  stopwatch,
+  timer;
+
+  static TimerMode fromName(String? name) => TimerMode.values.firstWhere(
+    (mode) => mode.name == name,
+    orElse: () => TimerMode.stopwatch,
+  );
+
+  String get label => switch (this) {
+    TimerMode.stopwatch => 'Stopwatch',
+    TimerMode.timer => 'Timer',
+  };
+}
+
 /// How a habit is measured.
 enum HabitKind {
   /// Done or not done, once a day.
@@ -16,13 +33,13 @@ enum HabitKind {
 
   String get label => switch (this) {
     HabitKind.check => 'Check off',
-    HabitKind.timer => 'Timer',
+    HabitKind.timer => 'Time',
     HabitKind.count => 'Count',
   };
 
   String get description => switch (this) {
     HabitKind.check => "One tap when it's done",
-    HabitKind.timer => 'Track minutes spent',
+    HabitKind.timer => 'Track time spent',
     HabitKind.count => 'Track units toward a target',
   };
 
@@ -51,7 +68,7 @@ class Habit {
     this.badgeEnd = '#A94E2E',
     this.step = 1,
     this.reminderMinutes,
-    this.blockDistractions = true,
+    this.timerMode = TimerMode.stopwatch,
   });
 
   final String id;
@@ -95,8 +112,8 @@ class Habit {
   /// Daily reminder as minutes after midnight, or null when off.
   int? reminderMinutes;
 
-  /// Timer habits only: draw the focus overlay over distracting apps.
-  bool blockDistractions;
+  /// Timed habits only: count up from zero, or down from the daily target.
+  TimerMode timerMode;
 
   bool get isTimer => kind == HabitKind.timer;
 
@@ -119,7 +136,7 @@ class Habit {
     'badgeEnd': badgeEnd,
     'step': step,
     'reminderMinutes': reminderMinutes,
-    'blockDistractions': blockDistractions,
+    'timerMode': timerMode.name,
   };
 
   static Habit fromJson(Map<String, Object?> json) => Habit(
@@ -142,7 +159,7 @@ class Habit {
       0,
       1439,
     ),
-    blockDistractions: (json['blockDistractions'] as bool?) ?? true,
+    timerMode: TimerMode.fromName(json['timerMode'] as String?),
   );
 }
 

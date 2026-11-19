@@ -171,7 +171,7 @@ the count as a 56pt numeral over the unit, a **unit dot row** (one dot per unit,
 - The "more" menu edits or deletes the habit.
 
 ### F5 — Timer
-**What.** A focus surface: the habit name, a 244pt ring showing elapsed over goal, the clock
+**What.** A timer surface: the habit name, a 244pt ring showing elapsed over goal, the clock
 (`0:20:00`), a 72pt accent start/pause control, a goal card (target on the left, logged on the
 right) and a ghost **Add 30 minutes** action.
 
@@ -251,8 +251,8 @@ Covered by F6. New routine opens the same editor as editing, starting empty.
 Settings rows that hold a short list (Appearance, Start week on) are inline dropdowns: tapping the
 row expands the options beneath it, the open row flips its chevron, the current value carries the
 accent and a check, and choosing closes the list. Only one dropdown is open at a time. The About
-row pushes a full screen that shows the version, the studio (Wrong Turn), what the app does, the
-focus-blocking disclosure and the licences.
+row pushes a full screen that shows the version (read from the installed package), the studio
+(Wrong Turn), what the app does and the licences.
 **What.** A profile card (initials avatar, name, "Local profile · nothing syncs, nothing leaves.",
 and an **Edit** pill that opens the name dialog), a **Share stats** button, then grouped rows:
 
@@ -320,24 +320,16 @@ targets, clamped at 0..23 / 0..59 / 0..59, and a live summary ("Adds 1h 25m to t
 confirmed duration is added to the habit's logged seconds for the day; zero is refused so the
 button cannot log nothing.
 
-### F16 — Focus blocking (Android)
+### F16 — Stopwatch and countdown timers
 
-Timed habits can cover chosen apps while the timer runs. Profile → FOCUS → *Distracting apps*
-lists launchable apps with a search field and a switch per app; the first switch asks for
-Android's accessibility access, explains exactly what it is used for, and applies the pending
-choice when the user comes back from system settings.
+The *Track it as* list names the timed kind **Time**. Choosing it reveals a **Timer type** row
+above the daily target: a Stopwatch / Timer segmented control, the same in-row toggle the
+Insights page uses for Week / Month / Year.
 
-While a timer runs, a native AccessibilityService draws a full-screen overlay over each selected
-package: FOCUS MODE, the habit name, the remaining time, and an *Open Accrue* pill that
-lifts the overlay and opens the app. The overlay is a `TYPE_ACCESSIBILITY_OVERLAY` window, so it
-needs no draw-over-other-apps permission, and the service declares
-`canRetrieveWindowContent="false"`: it reads the foreground package name and nothing else. The
-overlay is dropped when the timer pauses, ends or the app comes to the front, and re-armed on the
-next blocked window.
-
-The picker, the overlay and the accessibility grant live outside Flutter: channel
-`accrue/focus`, prefs file `habit_focus` (active, habit, endsAt, packages), service
-`FocusAccessibilityService`. Blocked packages persist with the habit state as `blockedApps`.
+**Stopwatch** counts up from zero and shows the time logged ("12:04 of 30 min"); **Timer** counts
+the daily target down and shows what is left ("17:56 left of 30 min"). The ring fills toward the
+target either way, and both modes complete when the daily target is reached. The mode is stored
+with the habit as `timerMode` and survives export, import and restore.
 
 ## 8. Non-functional requirements
 

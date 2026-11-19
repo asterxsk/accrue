@@ -36,11 +36,19 @@ class DataExportScreen extends StatelessWidget {
         mimeType: 'application/json',
         dialogTitle: 'Save backup',
       );
-      if (!context.mounted) return;
-      _showSnack(context, saved == null ? 'Export cancelled' : 'Backup exported');
+      if (!context.mounted || saved == null) return;
+      await infoDialog(
+        context,
+        title: 'Exported',
+        body: 'Backup exported. The file is where you saved it.',
+      );
     } catch (_) {
       if (!context.mounted) return;
-      _showSnack(context, 'Could not save the backup.', error: true);
+      await infoDialog(
+        context,
+        title: 'Could not export',
+        body: 'The backup could not be saved.',
+      );
     }
   }
 
@@ -68,10 +76,18 @@ class DataExportScreen extends StatelessWidget {
       final bytes = await file.readAsBytes();
       final result = store.importJson(utf8.decode(bytes));
       if (!context.mounted) return;
-      _showSnack(context, result.message, error: !result.ok);
+      await infoDialog(
+        context,
+        title: result.ok ? 'Imported' : 'Could not import',
+        body: result.message,
+      );
     } catch (_) {
       if (!context.mounted) return;
-      _showSnack(context, 'That backup could not be read.', error: true);
+      await infoDialog(
+        context,
+        title: 'Could not import',
+        body: 'That backup could not be read.',
+      );
     }
   }
 
@@ -107,23 +123,6 @@ class DataExportScreen extends StatelessWidget {
     store.resetApp();
     Navigator.of(context).pop();
     nav.select(0);
-  }
-
-  void _showSnack(BuildContext context, String message, {bool error = false}) {
-    final colors = AppColors.of(context);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: error
-              ? Text(
-                  message,
-                  style: AppType.body.copyWith(color: colors.dangerOn),
-                )
-              : Text(message),
-          backgroundColor: error ? colors.danger : null,
-        ),
-      );
   }
 
   @override

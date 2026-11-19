@@ -41,9 +41,8 @@ and streak lives in local storage on the device.
   never in the background — and a newer build downloads with progress and installs through
   Android's own installer. The download is checked against the release's SHA-256 before it is
   offered.
-- **Focus blocking (Android).** While a timer habit runs, an accessibility overlay covers apps you
-  have flagged as distracting, with a countdown and a way back into Accrue. Each timer habit can
-  opt out.
+- **Stopwatch or countdown.** A timed habit chooses how its clock reads: a stopwatch counts up,
+  a timer counts the daily target down. Both finish at the target.
 - **Share poster.** A 4:5 card of the week — the bars, the totals and a projection of where the
   current pace leads. Share sends its numbers as text.
 - **A small celebration.** Finishing a habit fires confetti cannons from both top corners with a
@@ -96,14 +95,13 @@ build on the new key, so it cannot install over v2.2.1–v2.4.2: export, uninsta
 | `lib/state/habit_store.dart` | State, day rollover, streaks, weeks, month heat data, timer, import/export, persistence |
 | `lib/screens` | Onboarding and the four tabs, plus pushed detail, profile, editor and data screens |
 | `lib/widgets` | Shared control set, generated Lucide library, dialogs, wheel picker, heat map, share poster, brand mark |
-| `lib/util/focus.dart` + `android/.../FocusAccessibilityService.kt` | Focus-blocking channel, app list, overlay |
 | `lib/util/reminders.dart` | Per-habit daily notification scheduling |
 | `lib/util/updates.dart` | GitHub release lookup, verified APK download, install hand-off |
 | `tool/gen_icons.py` | Regenerates `lib/widgets/icon_library.dart` from a local `lucide-static` tree |
 | `tool/demo_main.dart` | Dark demo entrypoint used for the README captures |
 | `tool/export_brand.py` | Exports the in-app enso mark to `docs/brand/accrue-enso.svg` |
 | `docs/` | [Product brief](docs/PRD.md) and the brand mark |
-| `screenshots/` | Dark captures of the built Android app at 390×867, plus the Android focus overlay at 1080×2400 |
+| `screenshots/` | Dark captures of the built Android app at 390×867 |
 
 Deliberate divergences from the prototype are recorded in [NOTES.md](NOTES.md).
 

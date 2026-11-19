@@ -3,11 +3,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_type.dart';
 import '../theme/metrics.dart';
+import '../util/app_version.dart';
 import '../widgets/brand_mark.dart';
 import '../widgets/ui.dart';
-
-/// Shown in the profile and on the About page.
-const String appVersion = '2.4';
 
 /// The app's display name.
 const String appName = 'Accrue';
@@ -63,7 +61,9 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 2),
             Center(
               child: Text(
-                'Version $appVersion',
+                AppVersion.version.isEmpty
+                    ? 'Version unknown'
+                    : 'Version ${AppVersion.version}',
                 style: AppType.meta.copyWith(color: colors.muted),
               ),
             ),
@@ -85,18 +85,9 @@ class AboutScreen extends StatelessWidget {
               title: 'What is inside',
               body:
                   'Check-off, counted and timed habits with icons or a text '
-                  'badge, half-unit counts, ordered routines, week insights, a '
-                  'month heat map, per-habit reminders, a share card, and focus '
-                  'blocking for timed habits on Android.',
-            ),
-            _Section(
-              title: 'Focus blocking',
-              body:
-                  'While a timed habit runs, Android accessibility access is '
-                  'used to draw a blocked screen over the apps you pick. The '
-                  'service is declared without window-content access: it reads '
-                  'the package name of the front app and nothing else. It is '
-                  'off until you switch it on in system settings.',
+                  'badge, half-unit counts, stopwatch and countdown timers, '
+                  'ordered routines, week insights, a month heat map, '
+                  'per-habit reminders and a share card.',
             ),
             _Section(
               title: 'Reminders',

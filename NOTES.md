@@ -21,7 +21,7 @@ the device.
 | `lib/widgets/icon_library.dart` | Generated: 1,865 Lucide icon bodies + sorted names (`tool/gen_icons.py` regenerates it) |
 | `tool/gen_icons.py` | Converts a local `lucide-static` package into `icon_library.dart` |
 | `test/widget_test.dart` | 31 unit/widget tests |
-| `screenshots/` | 390×867 dark Android captures (01–11), plus the Android focus overlay at 1080×2400 |
+| `screenshots/` | 390×867 dark Android captures (01–11) |
 
 ## Design facts encoded in the theme
 
@@ -108,19 +108,6 @@ the device.
 
 - **Add time is a picker.** The timer's *Add time* opens `durationDialog` (hour/minute/second
   columns); the confirmed total goes to the store's logged seconds. Zero is refused.
-- **Focus blocking is native.** `FocusAccessibilityService` (Kotlin) draws a
-  `TYPE_ACCESSIBILITY_OVERLAY` window over the packages listed in the `habit_focus` prefs, which
-  the Flutter side writes through `accrue/focus` when a timed habit starts, when time is
-  added and when it pauses or ends. The service only handles `TYPE_WINDOW_STATE_CHANGED`, ignores
-  systemui and IME windows, and hides on our own activity — the overlay's own window reports this
-  package as a `FrameLayout`, so only a class name containing `Activity` counts as "the user came
-  back". The grant is per-install: force-stopping the app or reinstalling drops it, and the
-  profile row says so.
-- **The overlay is not focusable** (`FLAG_NOT_FOCUSABLE | FLAG_NOT_TOUCH_MODAL`), so blocked apps
-  keep their own input state; the pill is the only interactive target.
-- **UiAutomation steals the overlay.** Any `uiautomator`/agent-device snapshot registers
-  UiTestAutomationService, which removes accessibility overlay windows; screenshots taken after a
-  snapshot therefore look unblocked. Capture with a plain screencap instead.
 - **Appearance and week start are inline dropdowns.** `SettingsSelect` expands its options
   under the row (chevron flips, selected option in the accent with a check) and closes on pick or
   a second tap; only one is open at a time. Reminders and reminder time are unchanged.
@@ -128,7 +115,6 @@ the device.
   `lib/screens/about_screen.dart` (`appVersion = '2.4'`, `studioName = 'Wrong Turn'`). The page
   credits the studio under the version and in the footer, and the Android launcher label is
   "Accrue".
-- **Distracting apps rows toggle on tap** anywhere in the row, not only on the switch.
 - **Updates are manual.** Nothing polls. The profile's corner button spins while
   `UpdateController.check()` reads `api.github.com/repos/asterxsk/accrue/releases`, turns into an
   accent download glyph when a newer tag exists, and otherwise shows an accent check plus "No
@@ -154,11 +140,6 @@ the device.
   reminder clock and the *Add time* columns click their way past each value. `Sfx` keeps one
   low-latency player per asset and drops ticks closer than 45 ms apart, which is what a fast flick
   produces; without that the clicks blur and the player falls behind.
-- **Accessibility access is a row**, not a switch: the grant lives in system settings and Android
-  can drop it after an update or a stretch of disuse. The row reports `isEnabled` on load and on
-  resume, and opens `ACTION_ACCESSIBILITY_SETTINGS`. `FocusBlocking.canQuery` short-circuits the
-  channel under `flutter test`, where the 4-second timeout would otherwise outlive the tree as a
-  pending timer.
 
 ## Verification
 
@@ -171,18 +152,12 @@ the device.
   ("footprints" → 1 icon), badge typed as `wa` → `WA` on the Ocean gradient, target typed as 8,000,
   increment typed as 250 (one `+` logs 250), badge rendered in Today and in counter detail, Edit
   pill renames the profile, pill sits flush to the edges.
-- Re-walked on the Android 15 emulator after focus blocking: accessibility granted, Clock
-  selected in Distracting apps, timer started → overlay over Clock ("FOCUS MODE / Gym / 5 min
-  left"), countdown ticking (4 → 3 min), pill opening the app and lifting the overlay, overlay
-  returning when Clock came back, and cleared when the timer paused. `Add time` picker confirmed
-  1h 37m + 1h 25m = 3h 2m. About shows Version 2.1. Screenshot: `screenshots/20-focus-blocked.png`.
 - Release APK (2.3.0) signed with the stable key installed over the previous build and walked on the
   emulator after the wheel picker, share poster, updater and celebration changes: hour wheel wraps
   both ways, 12-hour mapping matches the label, *Add time* opens at 00:00:00 on three wheels,
   checking from the profile corner spins → accent check + "No updates. You are on the latest build."
-  for two seconds → back to the refresh glyph, ticking a habit fires confetti and the pop, and
-  *Accessibility access* reads Off then opens the system Accessibility page listing "Accrue focus
-  blocking". With the host IP's API quota spent (403), a check still resolved through the Atom feed,
+  for two seconds → back to the refresh glyph, and ticking a habit fires confetti and the pop.
+  With the host IP's API quota spent (403), a check still resolved through the Atom feed,
   listed 2.3.0 back to 2.1.0, and downloaded 2.2.1 to an Install button.
 
 ## Repository and releases

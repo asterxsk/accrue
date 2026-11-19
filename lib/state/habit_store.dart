@@ -40,9 +40,6 @@ class HabitStore extends ChangeNotifier {
   /// Times read as 24-hour by default; the profile can switch to 12-hour.
   bool clock24 = true;
 
-  /// App packages drawn over while a focus timer runs.
-  Set<String> blockedApps = {};
-
   String profileName = '';
   String profileBio = '';
 
@@ -324,10 +321,16 @@ class HabitStore extends ChangeNotifier {
           warn: false,
         );
       case HabitKind.timer:
+        final logged = liveSeconds(habit);
+        if (habit.timerMode == TimerMode.timer) {
+          final left = habit.target * 60 - logged;
+          return (
+            text: left > 0 ? '${Fmt.duration(left)} left' : 'Goal reached',
+            warn: false,
+          );
+        }
         return (
-          text:
-              '${Fmt.duration(liveSeconds(habit))} of '
-              '${Fmt.minutes(habit.target)}',
+          text: '${Fmt.duration(logged)} of ${Fmt.minutes(habit.target)}',
           warn: false,
         );
       case HabitKind.check:
@@ -567,7 +570,7 @@ class HabitStore extends ChangeNotifier {
     String badgeEnd = '#A94E2E',
     double step = 1,
     int? reminderMinutes,
-    bool blockDistractions = true,
+    TimerMode timerMode = TimerMode.stopwatch,
   }) {
     _ensureDay();
     final habit = Habit(
@@ -588,7 +591,7 @@ class HabitStore extends ChangeNotifier {
       badgeEnd: badgeEnd,
       step: _clampStep(step, target),
       reminderMinutes: reminderMinutes,
-      blockDistractions: blockDistractions,
+      timerMode: timerMode,
     );
     habits = [...habits, habit];
     _commit();
@@ -630,7 +633,7 @@ class HabitStore extends ChangeNotifier {
     double? step,
     int? reminderMinutes,
     bool updateReminder = false,
-    bool? blockDistractions,
+    TimerMode? timerMode,
   }) {
     _ensureDay();
     final kindChanged = habit.kind != kind;
@@ -653,9 +656,7 @@ class HabitStore extends ChangeNotifier {
     if (updateReminder) {
       habit.reminderMinutes = reminderMinutes?.clamp(0, 1439);
     }
-    if (blockDistractions != null) {
-      habit.blockDistractions = blockDistractions;
-    }
+    if (timerMode != null) habit.timerMode = timerMode;
     if (kindChanged) {
       habit
         ..checked = false
@@ -829,16 +830,6 @@ class HabitStore extends ChangeNotifier {
   /// A reminder time in the format the profile asks for.
   String formatTime(int minutes) => Fmt.clockLabel(minutes, clock24: clock24);
 
-  void toggleBlockedApp(String packageName) {
-    if (!blockedApps.remove(packageName)) blockedApps.add(packageName);
-    _commit();
-  }
-
-  void clearBlockedApps() {
-    blockedApps = {};
-    _commit();
-  }
-
   /// Removes habits, routines and their history; profile and settings stay.
   void clearAll() {
     habits = [];
@@ -861,7 +852,6 @@ class HabitStore extends ChangeNotifier {
     themeMode = ThemeMode.system;
     weekStartsMonday = true;
     clock24 = true;
-    blockedApps = {};
     profileName = '';
     profileBio = '';
     profilePhoto = '';
@@ -943,7 +933,6 @@ class HabitStore extends ChangeNotifier {
     'themeMode': themeMode.name,
     'weekStartsMonday': weekStartsMonday,
     'clock24': clock24,
-    'blockedApps': blockedApps.toList(),
     'runningHabitId': runningHabitId,
     'timerBaseSeconds': _timerBaseSeconds,
     'timerStartedAt': _timerStartedAt?.toIso8601String(),
@@ -1000,10 +989,6 @@ class HabitStore extends ChangeNotifier {
     );
     weekStartsMonday = (json['weekStartsMonday'] as bool?) ?? true;
     clock24 = (json['clock24'] as bool?) ?? true;
-    final blocked = json['blockedApps'];
-    blockedApps = blocked is List
-        ? blocked.whereType<String>().toSet()
-        : <String>{};
     profileName = (json['profileName'] as String?) ?? '';
     profileBio = (json['profileBio'] as String?) ?? '';
     profilePhoto = (json['profilePhoto'] as String?) ?? '';

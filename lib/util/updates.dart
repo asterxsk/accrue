@@ -45,6 +45,11 @@ class UpdateController extends ChangeNotifier {
   static final UpdateController instance = UpdateController._();
 
   static const String repo = 'asterxsk/accrue';
+
+  /// v2.5.0 moved to the current signing key. Earlier builds cannot install
+  /// over this one (and this one cannot install over them), so the Updates
+  /// page only lists releases from here on.
+  static const String minimumRelease = '2.5.0';
   static const MethodChannel _channel = MethodChannel('habit_tracker/updates');
 
   UpdatePhase phase = UpdatePhase.idle;
@@ -94,7 +99,10 @@ class UpdateController extends ChangeNotifier {
     await loadInstalled();
     try {
       final rows = await _releases();
-      releases = rows;
+      releases = [
+        for (final release in rows)
+          if (compareVersions(release.version, minimumRelease) >= 0) release,
+      ];
       latest = rows.isEmpty ? null : rows.first;
       selected = latest;
       phase = hasUpdate ? UpdatePhase.available : UpdatePhase.current;

@@ -14,9 +14,8 @@ const String appName = 'Accrue';
 const String studioName = 'Wrong Turn';
 
 Future<void> openAbout(BuildContext context) {
-  return Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
-  );
+  return Navigator.of(context)
+      .push(MaterialPageRoute<void>(builder: (_) => const AboutScreen()));
 }
 
 /// Full-page About: the version, what the app does and does not do, and the

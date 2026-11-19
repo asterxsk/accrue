@@ -72,7 +72,9 @@ class UpdateController extends ChangeNotifier {
   bool downloading = false;
 
   bool get hasUpdate =>
-      latest != null && installed.isNotEmpty && isNewer(latest!.version, installed);
+      latest != null &&
+      installed.isNotEmpty &&
+      isNewer(latest!.version, installed);
 
   bool get busy => phase == UpdatePhase.checking || downloading;
 
@@ -170,7 +172,9 @@ class UpdateController extends ChangeNotifier {
   }
 
   Future<List<AppRelease>> _atomReleases() async {
-    final body = await _get(Uri.parse('https://github.com/$repo/releases.atom'));
+    final body = await _get(
+      Uri.parse('https://github.com/$repo/releases.atom'),
+    );
     final rows = parseAtomReleases(body, repo: repo)
       ..sort((a, b) => compareVersions(b.version, a.version));
     if (rows.isEmpty) throw const FormatException('no releases in the feed');
@@ -204,7 +208,9 @@ class UpdateController extends ChangeNotifier {
           : release.apkBytes;
       final target = File('$dir/accrue-${release.version}.apk');
       for (final stale in Directory(dir).listSync()) {
-        if (stale is File && stale.path.endsWith('.apk') && stale.path != target.path) {
+        if (stale is File &&
+            stale.path.endsWith('.apk') &&
+            stale.path != target.path) {
           try {
             await stale.delete();
           } catch (_) {}
@@ -373,7 +379,9 @@ Future<String> _get(Uri url, {Map<String, String>? headers}) async {
       final reset = int.tryParse(
         response.headers.value('x-ratelimit-reset') ?? '',
       );
-      final retryAfter = int.tryParse(response.headers.value('retry-after') ?? '');
+      final retryAfter = int.tryParse(
+        response.headers.value('retry-after') ?? '',
+      );
       throw _HttpFailure(
         response.statusCode,
         reset != null
@@ -420,15 +428,21 @@ List<AppRelease> parseAtomReleases(String xml, {required String repo}) {
   for (final entry in RegExp(r'<entry>([\s\S]*?)</entry>').allMatches(xml)) {
     final body = entry.group(1) ?? '';
     final href =
-        RegExp(r'<link rel="alternate"[^>]*href="([^"]+)"').firstMatch(body)?.group(1) ??
+        RegExp(r'<link rel="alternate"[^>]*href="([^"]+)"')
+            .firstMatch(body)
+            ?.group(1) ??
         '';
     if (!href.contains('/tag/')) continue;
     final tag = href.split('/tag/').last.replaceAll(RegExp(r'[/"]'), '').trim();
     final version = tag.replaceFirst('v', '');
     if (version.isEmpty) continue;
-    final updated = RegExp(r'<updated>([^<]+)</updated>').firstMatch(body)?.group(1);
+    final updated = RegExp(r'<updated>([^<]+)</updated>')
+        .firstMatch(body)
+        ?.group(1);
     final content =
-        RegExp(r'<content type="html">([\s\S]*?)</content>').firstMatch(body)?.group(1) ??
+        RegExp(r'<content type="html">([\s\S]*?)</content>')
+            .firstMatch(body)
+            ?.group(1) ??
         '';
     rows.add(
       AppRelease(
@@ -436,7 +450,8 @@ List<AppRelease> parseAtomReleases(String xml, {required String repo}) {
         tag: tag,
         publishedAt: DateTime.tryParse(updated ?? '')?.toLocal(),
         notes: _plainText(content),
-        apkUrl: 'https://github.com/$repo/releases/download/$tag/accrue-$version.apk',
+        apkUrl:
+            'https://github.com/$repo/releases/download/$tag/accrue-$version.apk',
         apkBytes: 0,
       ),
     );
@@ -475,10 +490,9 @@ Future<bool> _looksLikeApk(File file) async {
     final head = await file.openRead(0, 4).first;
     if (head.length < 4 || head[0] != 0x50 || head[1] != 0x4B) return false;
     final tailStart = length > 65558 ? length - 65558 : 0;
-    final tail = await file.openRead(tailStart).fold<List<int>>(
-      <int>[],
-      (all, chunk) => all..addAll(chunk),
-    );
+    final tail = await file
+        .openRead(tailStart)
+        .fold<List<int>>(<int>[], (all, chunk) => all..addAll(chunk));
     for (var i = tail.length - 22; i >= 0; i--) {
       if (tail[i] == 0x50 &&
           tail[i + 1] == 0x4B &&

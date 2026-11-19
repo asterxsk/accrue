@@ -107,11 +107,12 @@ the device.
   `A TextEditingController was used after being disposed` plus a framework `_dependents.isEmpty`
   assertion.)
 
-- **Timed habits choose a clock.** `Habit.timerMode` is `stopwatch` (counts up, the old
-  behaviour) or `timer` (counts the daily target down). The form shows a Stopwatch / Timer
-  segmented control above the daily target; the timer screen reads `Fmt.clock(shown)` where
-  `shown` is elapsed or remaining, and the habit row's subline says "of 30m" or "17m left".
-  Both modes complete at the target, so streaks, insights and routines are unchanged.
+- **Timed habits choose a clock.** `Habit.timerMode` is `stopwatch` or `timer`. A **stopwatch**
+  has no daily target (it is stored as `target: 0`), shows "logged today", and marks the day done
+  once any time is logged. A **timer** counts the daily target down ("17m left") and completes at
+  zero. The form shows a Stopwatch / Timer segmented control above the daily target and hides the
+  target row for a stopwatch. Habits saved before the field existed load as `timer`, so their
+  goals are unchanged.
 - **The version is read, not written.** `AppVersion.load()` runs in `main` and keeps
   `PackageInfo.version`; About and the profile show that value, so a release never ships a
   hardcoded string again.

@@ -76,7 +76,10 @@ class HabitStore extends ChangeNotifier {
     return switch (habit.kind) {
       HabitKind.check => habit.checked,
       HabitKind.count => habit.target > 0 && habit.count >= habit.target,
-      HabitKind.timer => habit.target > 0 && habit.seconds >= habit.target * 60,
+      HabitKind.timer =>
+        habit.timerMode == TimerMode.stopwatch
+            ? habit.seconds > 0
+            : habit.target > 0 && habit.seconds >= habit.target * 60,
     };
   }
 
@@ -87,7 +90,9 @@ class HabitStore extends ChangeNotifier {
       HabitKind.count =>
         habit.target <= 0 ? 0 : (habit.count / habit.target).clamp(0.0, 1.0),
       HabitKind.timer =>
-        habit.target <= 0
+        habit.timerMode == TimerMode.stopwatch
+            ? (habit.seconds > 0 ? 1.0 : 0.0)
+            : habit.target <= 0
             ? 0
             : (habit.seconds / (habit.target * 60)).clamp(0.0, 1.0),
     };
@@ -322,6 +327,12 @@ class HabitStore extends ChangeNotifier {
         );
       case HabitKind.timer:
         final logged = liveSeconds(habit);
+        if (habit.timerMode == TimerMode.stopwatch) {
+          return (
+            text: logged > 0 ? '${Fmt.duration(logged)} logged' : 'No time yet',
+            warn: false,
+          );
+        }
         if (habit.timerMode == TimerMode.timer) {
           final left = habit.target * 60 - logged;
           return (
@@ -363,7 +374,10 @@ class HabitStore extends ChangeNotifier {
   /// "8 glasses a day" / "45 minutes a day".
   String targetLine(Habit habit) => switch (habit.kind) {
     HabitKind.count => '${Fmt.count(habit.target)} ${unitWord(habit)} a day',
-    HabitKind.timer => '${habit.target} minutes a day',
+    HabitKind.timer =>
+      habit.timerMode == TimerMode.stopwatch
+          ? 'Tracked with a stopwatch'
+          : '${habit.target} minutes a day',
     HabitKind.check => 'Once a day',
   };
 
@@ -449,7 +463,9 @@ class HabitStore extends ChangeNotifier {
         case HabitKind.count:
           habit.count = done ? habit.target.toDouble() : 0;
         case HabitKind.timer:
-          habit.seconds = done ? max(habit.seconds, habit.target * 60) : 0;
+          habit.seconds = habit.timerMode == TimerMode.stopwatch
+              ? (done ? (habit.seconds > 0 ? habit.seconds : 60) : 0)
+              : (done ? max(habit.seconds, habit.target * 60) : 0);
           if (runningHabitId == habit.id) {
             runningHabitId = null;
             _timerStartedAt = null;
@@ -570,7 +586,7 @@ class HabitStore extends ChangeNotifier {
     String badgeEnd = '#A94E2E',
     double step = 1,
     int? reminderMinutes,
-    TimerMode timerMode = TimerMode.stopwatch,
+    TimerMode timerMode = TimerMode.timer,
   }) {
     _ensureDay();
     final habit = Habit(
@@ -578,7 +594,11 @@ class HabitStore extends ChangeNotifier {
       name: name.trim(),
       kind: kind,
       icon: icon,
-      target: kind == HabitKind.check ? 1 : target.clamp(1, 100000),
+      target: kind == HabitKind.check
+          ? 1
+          : kind == HabitKind.timer && timerMode == TimerMode.stopwatch
+          ? 0
+          : target.clamp(1, 100000),
       unit: kind == HabitKind.count
           ? (unit.trim().isEmpty ? 'times' : unit.trim())
           : kind == HabitKind.timer
@@ -637,11 +657,16 @@ class HabitStore extends ChangeNotifier {
   }) {
     _ensureDay();
     final kindChanged = habit.kind != kind;
+    final mode = timerMode ?? habit.timerMode;
     habit
       ..name = name.trim()
       ..kind = kind
       ..icon = icon
-      ..target = kind == HabitKind.check ? 1 : target.clamp(1, 100000)
+      ..target = kind == HabitKind.check
+          ? 1
+          : kind == HabitKind.timer && mode == TimerMode.stopwatch
+          ? 0
+          : target.clamp(1, 100000)
       ..unit = kind == HabitKind.count
           ? (unit.trim().isEmpty ? 'times' : unit.trim())
           : kind == HabitKind.timer

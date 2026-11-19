@@ -1,12 +1,13 @@
-/// How a timed habit's clock reads. A stopwatch counts up; a timer counts the
-/// goal down. Both finish when the daily target is reached.
+/// How a timed habit's clock reads. A stopwatch counts up and has no daily
+/// target: any logged time marks the day done. A timer counts a daily target
+/// down and finishes when it reaches zero.
 enum TimerMode {
   stopwatch,
   timer;
 
   static TimerMode fromName(String? name) => TimerMode.values.firstWhere(
     (mode) => mode.name == name,
-    orElse: () => TimerMode.stopwatch,
+    orElse: () => TimerMode.timer,
   );
 
   String get label => switch (this) {
@@ -68,7 +69,7 @@ class Habit {
     this.badgeEnd = '#A94E2E',
     this.step = 1,
     this.reminderMinutes,
-    this.timerMode = TimerMode.stopwatch,
+    this.timerMode = TimerMode.timer,
   });
 
   final String id;
@@ -112,7 +113,7 @@ class Habit {
   /// Daily reminder as minutes after midnight, or null when off.
   int? reminderMinutes;
 
-  /// Timed habits only: count up from zero, or down from the daily target.
+  /// Timed habits only: count up with no goal, or down from the daily target.
   TimerMode timerMode;
 
   bool get isTimer => kind == HabitKind.timer;

@@ -41,8 +41,9 @@ and streak lives in local storage on the device.
   never in the background — and a newer build downloads with progress and installs through
   Android's own installer. The download is checked against the release's SHA-256 before it is
   offered.
-- **Stopwatch or countdown.** A timed habit chooses how its clock reads: a stopwatch counts up,
-  a timer counts the daily target down. Both finish at the target.
+- **Stopwatch or countdown.** A timed habit chooses how its clock reads: a stopwatch counts up
+  with no daily target and marks the day done once any time is logged; a timer counts a daily
+  target down and finishes at zero.
 - **Share poster.** A 4:5 card of the week — the bars, the totals and a projection of where the
   current pace leads. Share sends its numbers as text.
 - **A small celebration.** Finishing a habit fires confetti cannons from both top corners with a

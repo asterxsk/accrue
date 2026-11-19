@@ -540,9 +540,7 @@ Future<({int hour, int minute})?> timeDialog(
                       selected: clock24 ? nextHour : nextHour % 12,
                       semanticLabel: 'Hour',
                       onChanged: (index) => setState(() {
-                        nextHour = clock24
-                            ? index
-                            : index + (pm ? 12 : 0);
+                        nextHour = clock24 ? index : index + (pm ? 12 : 0);
                       }),
                     ),
                     const SizedBox(width: 4),
@@ -711,11 +709,7 @@ String _durationLabel(int seconds) {
   final h = seconds ~/ 3600;
   final m = (seconds % 3600) ~/ 60;
   final s = seconds % 60;
-  return [
-    if (h > 0) '${h}h',
-    if (m > 0) '${m}m',
-    if (s > 0) '${s}s',
-  ].join(' ');
+  return [if (h > 0) '${h}h', if (m > 0) '${m}m', if (s > 0) '${s}s'].join(' ');
 }
 
 class _TimeColon extends StatelessWidget {

@@ -14,11 +14,7 @@ import '../widgets/habit_mark.dart';
 import '../widgets/habit_menu.dart';
 import '../widgets/ui.dart';
 
-Future<void> openTimer(
-  BuildContext context,
-  HabitStore store,
-  Habit habit,
-) {
+Future<void> openTimer(BuildContext context, HabitStore store, Habit habit) {
   return Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => TimerScreen(store: store, habitId: habit.id),
@@ -67,9 +63,7 @@ class _TimerScreenState extends State<TimerScreen> {
           final shown = countdown
               ? math.max(0, goalSeconds - seconds)
               : seconds;
-          final progress = goalSeconds == 0
-              ? 0.0
-              : (seconds / goalSeconds).clamp(0.0, 1.0);
+          final progress = store.ratio(habit);
 
           return SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
@@ -118,10 +112,8 @@ class _TimerScreenState extends State<TimerScreen> {
                           Text(
                             countdown
                                 ? 'left of ${Fmt.minutes(habit.target)}'
-                                : 'of ${Fmt.minutes(habit.target)}',
-                            style: AppType.meta.copyWith(
-                              color: colors.muted,
-                            ),
+                                : 'logged today',
+                            style: AppType.meta.copyWith(color: colors.muted),
                           ),
                         ],
                       ),
@@ -168,7 +160,7 @@ class _TimerScreenState extends State<TimerScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          "Today's goal",
+                          countdown ? "Today's goal" : "Today's time",
                           style: AppType.meta.copyWith(
                             fontSize: 14,
                             color: colors.muted,

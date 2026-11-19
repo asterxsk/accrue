@@ -74,10 +74,10 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
     );
     _kind = habit?.kind ?? HabitKind.check;
     _icon = habit?.icon ?? _kind.defaultIcon;
-    _target = habit?.target ?? 1;
+    _target = habit != null && habit.target > 0 ? habit.target : 1;
     _step = habit?.step ?? 1;
     _reminderMinutes = habit?.reminderMinutes;
-    _timerMode = habit?.timerMode ?? TimerMode.stopwatch;
+    _timerMode = habit?.timerMode ?? TimerMode.timer;
     _badge = habit?.badge ?? false;
     _badgeText = habit?.badgeText ?? '';
     _badgeFg = habit?.badgeFg ?? '#FAF9F5';
@@ -443,50 +443,52 @@ class _NewHabitScreenState extends State<NewHabitScreen> {
                         ),
                         const SizedBox(height: 14),
                       ],
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border(top: BorderSide(color: colors.line)),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Daily target',
-                                    style: AppType.body.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                      color: colors.text,
+                      if (_kind != HabitKind.timer ||
+                          _timerMode == TimerMode.timer)
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border(top: BorderSide(color: colors.line)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Daily target',
+                                      style: AppType.body.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                        color: colors.text,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '$unitLabel per day',
-                                    style: AppType.meta.copyWith(
-                                      color: colors.muted,
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '$unitLabel per day',
+                                      style: AppType.meta.copyWith(
+                                        color: colors.muted,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            TargetStepper(
-                              value: _target,
-                              label: 'target',
-                              onTapValue: _typeTarget,
-                              onMinus: _target <= 1
-                                  ? null
-                                  : () => _bumpTarget(-1),
-                              onPlus: _target >= 100000
-                                  ? null
-                                  : () => _bumpTarget(1),
-                            ),
-                          ],
+                              const SizedBox(width: 16),
+                              TargetStepper(
+                                value: _target,
+                                label: 'target',
+                                onTapValue: _typeTarget,
+                                onMinus: _target <= 1
+                                    ? null
+                                    : () => _bumpTarget(-1),
+                                onPlus: _target >= 100000
+                                    ? null
+                                    : () => _bumpTarget(1),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                       if (_kind == HabitKind.count) ...[
                         const SizedBox(height: 16),
                         LabeledField(

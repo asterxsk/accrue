@@ -326,10 +326,11 @@ The *Track it as* list names the timed kind **Time**. Choosing it reveals a **Ti
 above the daily target: a Stopwatch / Timer segmented control, the same in-row toggle the
 Insights page uses for Week / Month / Year.
 
-**Stopwatch** counts up from zero and shows the time logged ("12:04 of 30 min"); **Timer** counts
-the daily target down and shows what is left ("17:56 left of 30 min"). The ring fills toward the
-target either way, and both modes complete when the daily target is reached. The mode is stored
-with the habit as `timerMode` and survives export, import and restore.
+**Stopwatch** counts up from zero, has no daily target (the target row is hidden and the habit
+stores `target: 0`), shows the time logged, and marks the day done once any time is logged.
+**Timer** counts the daily target down and shows what is left ("17:56 left of 30 min"), completing
+at zero. The mode is stored with the habit as `timerMode` and survives export, import and restore;
+habits saved before the field existed load as `timer`.
 
 ## 8. Non-functional requirements
 

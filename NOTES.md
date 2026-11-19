@@ -18,6 +18,7 @@ the device.
 | `lib/util/sfx.dart` | Two bundled sounds — `pop.wav` for a completed habit, `tick.wav` for each wheel row (`audioplayers`, low-latency, failures swallowed) |
 | `assets/sounds/` | `pop.wav` (cannon report: noise crack, 150→45 Hz thump, air tail) and `tick.wav` (3.5 ms click) |
 | `lib/app_nav.dart` | `AppNav` + `AppNavScope` so pushed screens can switch tabs |
+| `lib/util/app_version.dart` | Installed version from `PackageInfo`, loaded once at startup |
 | `lib/widgets/icon_library.dart` | Generated: 1,865 Lucide icon bodies + sorted names (`tool/gen_icons.py` regenerates it) |
 | `tool/gen_icons.py` | Converts a local `lucide-static` package into `icon_library.dart` |
 | `test/widget_test.dart` | 31 unit/widget tests |
@@ -106,6 +107,17 @@ the device.
   `A TextEditingController was used after being disposed` plus a framework `_dependents.isEmpty`
   assertion.)
 
+- **Timed habits choose a clock.** `Habit.timerMode` is `stopwatch` (counts up, the old
+  behaviour) or `timer` (counts the daily target down). The form shows a Stopwatch / Timer
+  segmented control above the daily target; the timer screen reads `Fmt.clock(shown)` where
+  `shown` is elapsed or remaining, and the habit row's subline says "of 30m" or "17m left".
+  Both modes complete at the target, so streaks, insights and routines are unchanged.
+- **The version is read, not written.** `AppVersion.load()` runs in `main` and keeps
+  `PackageInfo.version`; About and the profile show that value, so a release never ships a
+  hardcoded string again.
+- **Data & export reports in a dialog.** Export success, export failure, import success and an
+  unreadable backup each open `infoDialog` with an OK button; other screens keep their
+  snackbars.
 - **Add time is a picker.** The timer's *Add time* opens `durationDialog` (hour/minute/second
   columns); the confirmed total goes to the store's logged seconds. Zero is refused.
 - **Appearance and week start are inline dropdowns.** `SettingsSelect` expands its options
